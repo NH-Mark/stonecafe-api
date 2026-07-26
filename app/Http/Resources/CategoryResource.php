@@ -56,6 +56,7 @@ class CategoryResource extends JsonResource
             'created_at' => $this->created_at,
 
             'updated_at' => $this->updated_at,
+            'menu_items_count' => $this->menu_items_count,
 
         ];
     }

@@ -31,11 +31,11 @@ class CategoryController extends Controller
                 'parent',
                 'children'
             ])
+            ->withCount('menuItems')
             ->orderBy(
                 'sort_order'
             )
             ->get();
-
 
         return CategoryResource::collection(
             $categories
