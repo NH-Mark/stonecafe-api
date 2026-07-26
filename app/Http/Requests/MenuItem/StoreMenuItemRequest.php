@@ -39,7 +39,8 @@ class StoreMenuItemRequest extends FormRequest
 
             'barcode' => [
                 'nullable',
-                'string'
+                'string',
+                 'unique:menu_items,barcode',
             ],
 
             'image' => [
