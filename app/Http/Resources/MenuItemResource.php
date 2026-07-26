@@ -34,7 +34,8 @@ class MenuItemResource extends JsonResource
             'required' => $this->required,
 
             'active' => $this->active,
-
+            'barcode' => $this->barcode,
+            'sku' => $this->sku,
 
             'available' => $this->available,
             'menu_category_id' => $this->menu_category_id,
