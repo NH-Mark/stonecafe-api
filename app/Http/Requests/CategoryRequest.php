@@ -60,11 +60,11 @@ class CategoryRequest extends FormRequest
             'parent_id' => [
                 'nullable',
                 'integer',
+                Rule::excludeIf(fn() => request('parent_id') == 0),
                 'exists:menu_categories,id',
             ],
 
         ];
-
     }
 
 
@@ -74,14 +74,12 @@ class CategoryRequest extends FormRequest
         return [
 
             'name.required'
-                => 'Category name is required.',
+            => 'Category name is required.',
 
 
             'parent_id.exists'
-                => 'Selected parent category does not exist.',
+            => 'Selected parent category does not exist.',
 
         ];
-
     }
-
 }
