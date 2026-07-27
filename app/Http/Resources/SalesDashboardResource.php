@@ -25,6 +25,8 @@ class SalesDashboardResource extends JsonResource
                 $this->resource['top_selling_items'],
             "top_selling_modifiers" =>
                 $this->resource['top_selling_modifiers'],
+            "hourly_breakdown" =>
+                $this->resource['hourly_breakdown'],
         ];
     }
 }

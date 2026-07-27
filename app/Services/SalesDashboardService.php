@@ -154,6 +154,11 @@ class SalesDashboardService
                 $from,
                 $to
             ),
+            'hourly_breakdown' => $this->hourlyBreakdown(
+                $request,
+                $from,
+                $to
+            ),
         ];
     }
 
@@ -352,7 +357,6 @@ class SalesDashboardService
         Carbon $to
     ): array {
 
-
         $query = OrderItem::query()
             ->join(
                 'orders',
@@ -376,37 +380,44 @@ class SalesDashboardService
         );
 
 
-
         return $query
-
             ->selectRaw("
             menu_items.name as name,
+
             SUM(order_items.quantity) as qty,
+
             SUM(
                 order_items.quantity *
                 order_items.unit_price
-            ) as sales
-        ")
+            ) as sales,
 
+            SUM(
+                order_items.quantity *
+                menu_items.cost_price
+            ) as cogs
+        ")
 
             ->groupBy(
                 'menu_items.id',
                 'menu_items.name'
             )
 
-
             ->orderByDesc(
                 'sales'
             )
 
-
-            ->limit(5)
-
+            ->limit(50)
 
             ->get()
 
-
             ->map(function ($item) {
+
+                $profit = $item->sales - $item->cogs;
+
+                $profitability = $item->sales > 0
+                    ? ($profit / $item->sales) * 100
+                    : 0;
+
 
                 return [
 
@@ -414,65 +425,70 @@ class SalesDashboardService
 
                     'qty' => (int)$item->qty,
 
-                    'sales' => (float)$item->sales
+                    'sales' => (float)$item->sales,
 
+                    'cogs' => (float)$item->cogs,
+
+                    'profitability' => [
+                        'percentage' => round($profitability, 2),
+                        'amount' => round($profit, 2)
+                    ]
                 ];
             })
 
             ->toArray();
     }
 
-    private function topSellingModifiers(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
-        $query = OrderItemModifier::query()
+  private function topSellingModifiers(
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
 
-            ->join(
-                'order_items',
-                'order_items.id',
-                '=',
-                'order_item_modifiers.order_item_id'
-            )
+    $query = OrderItemModifier::query()
 
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
+        ->join(
+            'order_items',
+            'order_items.id',
+            '=',
+            'order_item_modifiers.order_item_id'
+        )
 
-            ->join(
-                'modifiers',
-                'modifiers.id',
-                '=',
-                'order_item_modifiers.modifier_id'
-            );
+        ->join(
+            'orders',
+            'orders.id',
+            '=',
+            'order_items.order_id'
+        )
 
+        ->join(
+            'menu_items',
+            'menu_items.id',
+            '=',
+            'order_items.menu_item_id'
+        )
 
-
-        /*
-        Apply dashboard filters
-        location
-        order type
-        source
-        payment
-        status
-    */
-
-        $this->applyFilters(
-            $query,
-            $request,
-            $from,
-            $to
+        ->join(
+            'modifiers',
+            'modifiers.id',
+            '=',
+            'order_item_modifiers.modifier_id'
         );
 
 
+    $this->applyFilters(
+        $query,
+        $request,
+        $from,
+        $to
+    );
 
-        return $query
 
-            ->selectRaw("
+    return $query
+
+        ->selectRaw("
+            menu_items.name as menu_item,
+
             modifiers.name as name,
 
             SUM(
@@ -482,30 +498,105 @@ class SalesDashboardService
             SUM(
                 order_item_modifiers.quantity *
                 order_item_modifiers.price
-            ) as sales
+            ) as total_amount
         ")
 
 
-            ->groupBy(
-                'modifiers.id',
-                'modifiers.name'
-            )
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'modifiers.id',
+            'modifiers.name'
+        )
 
 
-            ->orderByDesc(
-                'qty'
-            )
-            ->limit(5)
+        ->orderByDesc(
+            'qty'
+        )
+
+        ->limit(5)
+
+        ->get()
+
+        ->map(function ($item) {
+
+            // $profit = $item->total_amount - $item->total_cogs;
+
+            // $profitability = $item->total_amount > 0
+            //     ? ($profit / $item->total_amount) * 100
+            //     : 0;
+
+
+            return [
+
+                'menu_item' => $item->menu_item,
+
+                'name' => $item->name,
+
+                'qty' => (int)$item->qty,
+
+                'sales' => (float)$item->total_amount,
+
+                // 'total_cogs' => (float)$item->total_cogs,
+
+                // 'profitability' => [
+                //     'percentage' => round($profitability, 2),
+                //     'amount' => round($profit, 2)
+                // ]
+            ];
+
+        })
+
+        ->toArray();
+}
+
+    private function hourlyBreakdown(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
+
+        $query = Order::query();
+
+        $this->applyFilters(
+            $query,
+            $request,
+            $from,
+            $to
+        );
+
+        return $query
+            ->selectRaw("
+            DATE(ordered_at) as date,
+            HOUR(ordered_at) as hour,
+            COUNT(*) as orders
+        ")
+            ->groupByRaw("
+            DATE(ordered_at),
+            HOUR(ordered_at)
+        ")
+            ->orderBy("date")
+            ->orderBy("hour")
             ->get()
-            ->map(function ($item) {
+            ->groupBy("date")
+            ->map(function ($rows, $date) {
+
+                $hours = [];
+
+                for ($i = 0; $i < 24; $i++) {
+                    $hours[$i] = 0;
+                }
+
+                foreach ($rows as $row) {
+                    $hours[(int)$row->hour] = (int)$row->orders;
+                }
+
                 return [
-                    'name' => $item->name,
-                    'qty' => (int)$item->qty,
-                    'sales' => (float)$item->sales,
+                    "date" => Carbon::parse($date)->format("d M"),
+                    "hours" => array_values($hours),
                 ];
             })
-
-
+            ->values()
             ->toArray();
     }
 }
