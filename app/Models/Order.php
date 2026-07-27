@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-     use HasFactory;
+    use HasFactory;
     protected $fillable = [
         'order_no',
         'location_id',
@@ -27,10 +27,56 @@ class Order extends Model
         'ordered_at',
     ];
 
+     protected $casts = [
+        
+        'ordered_at' => 'datetime',
+        'created_at' => 'datetime',
+    ];
+
     public function orderType()
     {
         return $this->belongsTo(
             OrderType::class
         );
+    }
+    public function orderSource()
+    {
+        return $this->belongsTo(OrderSource::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function table()
+    {
+        return $this->belongsTo(
+            RestaurantTable::class,
+            'table_id'
+        );
+    }
+
+    public function cashier()
+    {
+        return $this->belongsTo(
+            User::class,
+            'cashier_id'
+        );
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+    public function items()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 }

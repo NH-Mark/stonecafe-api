@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\MenuItemTagController;
 use App\Http\Controllers\Api\ModifierController;
 use App\Http\Controllers\Api\ModifierGroupController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTypeController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\MenuItemModifierGroupController;
@@ -72,5 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
     Route::apiResource('order-types', OrderTypeController::class);
+    Route::apiResource('orders', OrderController::class);
 
 });
