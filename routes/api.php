@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\MenuItemTagController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\ModifierController;
 use App\Http\Controllers\Api\ModifierGroupController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTypeController;
+use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
@@ -74,5 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('order-types', OrderTypeController::class);
     Route::apiResource('orders', OrderController::class);
+    Route::apiResource('discounts', DiscountController::class);
+    Route::apiResource('payment-methods', PaymentMethodController::class);
 
 });

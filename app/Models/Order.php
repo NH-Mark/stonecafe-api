@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+
+    const STATUS_PENDING = 'pending';
+    const STATUS_CONFIRMED = 'confirmed';
+    const STATUS_PREPARING = 'preparing';
+    const STATUS_COMPLETED = 'completed';
+    const STATUS_CANCELLED = 'cancelled';
     use HasFactory;
     protected $fillable = [
         'order_no',
@@ -27,8 +33,8 @@ class Order extends Model
         'ordered_at',
     ];
 
-     protected $casts = [
-        
+    protected $casts = [
+
         'ordered_at' => 'datetime',
         'created_at' => 'datetime',
     ];
@@ -78,5 +84,25 @@ class Order extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function refund()
+    {
+        return $this->hasMany(
+            Refund::class
+        );
+    }
+    public function delivery()
+    {
+        return $this->hasOne(
+            DeliveryOrder::class
+        );
+    }
+
+    public function discounts()
+    {
+        return $this->hasMany(
+            OrderDiscount::class
+        );
     }
 }

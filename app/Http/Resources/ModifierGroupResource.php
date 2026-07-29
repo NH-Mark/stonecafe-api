@@ -52,6 +52,10 @@ class ModifierGroupResource extends JsonResource
                     $this->pivot->max_selection,
 
             ] : null,
+            'modifiers' => ModifierResource::collection(
+                $this->whenLoaded('modifiers')
+            ),
+
 
 
 

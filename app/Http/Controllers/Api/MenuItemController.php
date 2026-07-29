@@ -41,8 +41,11 @@ class MenuItemController extends Controller
 
    public function index(Request $request)
     {
-        $items = MenuItem::with([
-            'menu_category'
+           $items = MenuItem::with([
+            'menu_category',
+            'modifierGroups.modifiers',  
+            'foodSymbols',
+            'menuItemTags',
         ])
         ->when(
             $request->category_id,

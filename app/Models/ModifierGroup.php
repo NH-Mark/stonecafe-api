@@ -12,6 +12,7 @@ class ModifierGroup extends Model
         'active' => 'boolean',
         'required' => 'boolean',
     ];
+    
     public function modifiers()
     {
         return $this->hasMany(

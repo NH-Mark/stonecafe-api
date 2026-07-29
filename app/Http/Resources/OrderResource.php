@@ -47,6 +47,13 @@ class OrderResource extends JsonResource
                     'unit_price' => $item->unit_price,
                     'total_price' => $item->total_price,
                     'notes' => $item->notes,
+                    'modifiers' => $item->modifiers->map(function ($modifier) {
+                        return [
+                            'modifier' => $modifier->modifier?->name,
+                            'quantity' => $modifier->quantity,
+                            'price' => $modifier->price,
+                        ];
+                    }),
                 ];
             }),
             'payments' => $this->payments->map(function ($payment) {
@@ -62,6 +69,13 @@ class OrderResource extends JsonResource
                     ),
                 ];
             }),
+            'discounts' => $this->discounts->map(function ($discount) {
+                return [
+                    'name' => $discount->discount?->name,
+                    'amount' => $discount->amount,
+                ];
+            }),
+            
         ];
     }
 }
