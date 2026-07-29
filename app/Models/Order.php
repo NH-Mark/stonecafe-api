@@ -31,6 +31,7 @@ class Order extends Model
         'total_amount',
         'notes',
         'ordered_at',
+        'order_sequence'
     ];
 
     protected $casts = [

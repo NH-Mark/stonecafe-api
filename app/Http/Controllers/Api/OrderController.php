@@ -36,10 +36,21 @@ class OrderController extends Controller
     public function store(OrderRequest $request)
     {
         $order = DB::transaction(function () use ($request) {
+            $lastSequence = Order::lockForUpdate()
+                ->max('order_sequence');
+
+
+            $orderSequence = $lastSequence
+                ? $lastSequence + 1
+                : 100001;
 
             $order = Order::create([
 
-                'order_no' => 'ORD-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4)),
+                // 'order_no' => 'ORD-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4)),
+                'order_no' =>
+                    'ORD-' .
+                    $orderSequence,
+                'order_sequence' => $orderSequence,
                 'location_id' => $request->location_id,
                 'customer_id' => $request->customer_id,
                 'order_type_id' => $request->order_type_id,
