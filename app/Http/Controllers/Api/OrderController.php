@@ -7,6 +7,7 @@ use App\Http\Requests\Order\OrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\PaymentMethod;
+use App\Models\PrintJob;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -113,6 +114,15 @@ class OrderController extends Controller
                 'paid_at' => now(),
 
             ]);
+
+            PrintJob::create([
+                'order_id'=>$order->id,
+                'printer'=>"EPSON TM-T20III Receipt",
+                'status'=>"pending"
+            ]);
+
+
+            DB::commit();
             return $order->load([
 
                 'items.menuItem',

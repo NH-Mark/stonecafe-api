@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ModifierGroupController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTypeController;
 use App\Http\Controllers\Api\PaymentMethodController;
+use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,17 @@ Route::post('/reset-password', [
     AuthController::class,
     'resetPassword'
 ]);
+
+Route::get(
+    '/print/jobs',
+    [PrintJobController::class,'pending']
+);
+
+
+Route::post(
+    '/print/jobs/{id}/done',
+    [PrintJobController::class,'done']
+);
 
 Route::middleware('auth:sanctum')->group(function () {
 

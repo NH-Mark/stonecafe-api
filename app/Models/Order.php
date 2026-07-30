@@ -106,4 +106,9 @@ class Order extends Model
             OrderDiscount::class
         );
     }
+    
+    public function printJobs()
+    {
+        return $this->hasMany(PrintJob::class);
+    }
 }
