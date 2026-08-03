@@ -16,6 +16,7 @@ class FoodSymbolResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'active'=>$this->active,
+            'icon'=>$this->icon,
             'created_at' => $this->created_at,
         ];
 

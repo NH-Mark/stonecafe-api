@@ -13,7 +13,7 @@ class PaymentMethodController extends Controller
     
     public function index()
     {
-        $payment_methods = PaymentMethod::get();
+        $payment_methods = PaymentMethod::where('status',1)->get();
         return PaymentMethodResource::collection($payment_methods);
     }
   

@@ -130,17 +130,11 @@ class OrderController extends Controller
                 'payments.paymentMethod',
                 'discounts.discount',
                 'customer',
-
                 'table',
-
                 'cashier',
-
                 'location',
-
                 'orderType',
-
                 'orderSource'
-
             ]);
 
         });

@@ -34,5 +34,18 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'skipcash' => [
+
+        'client_id' => env('SKIPCASH_CLIENT_ID'),
+
+        'key_id' => env('SKIPCASH_KEY_ID'),
+
+        'secret' => env('SKIPCASH_SECRET'),
+
+        'webhook_key' => env('SKIPCASH_WEBHOOK_KEY'),
+
+        'base_url' => env('SKIPCASH_BASE_URL'),
+
+    ],
 
 ];

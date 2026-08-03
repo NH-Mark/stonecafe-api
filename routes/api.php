@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\Customer\PaymentController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
@@ -21,6 +22,8 @@ use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
+
+require __DIR__.'/api/customer.php';
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -90,5 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('discounts', DiscountController::class);
     Route::apiResource('payment-methods', PaymentMethodController::class);
+
+  
 
 });
