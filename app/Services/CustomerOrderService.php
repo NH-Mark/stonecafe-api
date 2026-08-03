@@ -173,7 +173,7 @@ class CustomerOrderService
 
 
                 'notes'=>
-                    $data['customer']['note'] ?? null,
+                    $data['notes'] ?? null,
 
 
                 'ordered_at'=>now()
