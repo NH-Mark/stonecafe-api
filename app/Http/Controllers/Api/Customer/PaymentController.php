@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\PrintJob;
 use App\Services\SkipCashService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -80,6 +81,16 @@ class PaymentController extends Controller
                 'payment_reference' => $request->id,
                 'status' => Order::STATUS_CONFIRMED,
             ]);
+
+            PrintJob::firstOrCreate(
+                [
+                    'order_id' => $order->id,
+                    'printer' => 'EPSON TM-T20III Receipt',
+                ],
+                [
+                    'status' => 'pending',
+                ]
+            );
 
 
             return redirect(

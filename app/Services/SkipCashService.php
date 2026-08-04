@@ -15,8 +15,6 @@ class SkipCashService
         string $reference,
         $customer
     ) {
-
-
         $payload = [
 
             "uid" =>
