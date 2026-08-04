@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Customer\PaymentController;
+use App\Http\Controllers\Api\Customer\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -18,3 +19,8 @@ Route::get(
 Route::get('/test-skipcash', function () {
     return "working";
 });
+Route::post('/orders/skipcash/webhook/{order}', [
+    PaymentWebhookController::class,
+    'handle'
+]);
+

@@ -1,8 +1,10 @@
 <?php
 
 namespace App\Http\Controllers\Api\Customer;
+
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\PrintJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -15,20 +17,27 @@ class PaymentWebhookController extends Controller
         ]);
 
 
-        // Example SkipCash response fields
-        $paymentId = $request->input('id');
-        $transactionId = $request->input('transactionId');
-        $status = $request->input('status');
+        $paymentId =
+            $request->input('PaymentId');
+
+        $transactionId =
+            $request->input('TransactionId');
+
+        $statusId =
+            (int) $request->input('StatusId');
+
 
 
         if (!$transactionId) {
 
-            Log::error('SkipCash webhook missing transactionId');
+            Log::error('SkipCash webhook missing TransactionId');
 
             return response()->json([
-                'message' => 'Missing transactionId'
+                'message' => 'Missing TransactionId'
             ], 400);
+
         }
+
 
 
         $order = Order::where(
@@ -37,51 +46,100 @@ class PaymentWebhookController extends Controller
         )->first();
 
 
+
         if (!$order) {
 
             Log::error('Order not found', [
-                'transactionId' => $transactionId
+                'TransactionId' => $transactionId
             ]);
 
             return response()->json([
                 'message' => 'Order not found'
             ], 404);
+
         }
 
 
-        switch ($status) {
 
-            case 'paid':
+
+        /*
+        |--------------------------------------------------------------------------
+        | StatusId 2 = Paid
+        |--------------------------------------------------------------------------
+        */
+
+        if ($statusId === 2) {
+
+
+            // Prevent duplicate webhook processing
+            if ($order->payment_status !== 'paid') {
+
 
                 $order->update([
-                    'payment_status' => 'paid',
-                    'payment_reference' => $paymentId,
+
+                    'payment_status' =>
+                        'paid',
+
+                    'payment_reference' =>
+                        $paymentId,
+
+                    'status' =>
+                        Order::STATUS_CONFIRMED,
+                    'paid_at' => now(),
+
+
                 ]);
 
-                break;
 
 
-            case 'failed':
+                PrintJob::firstOrCreate(
+                    [
+                        'order_id' =>
+                            $order->id,
 
-                $order->update([
-                    'payment_status' => 'failed',
+                        'printer' =>
+                            'EPSON TM-T20III Receipt',
+                    ],
+                    [
+                        'status' =>
+                            'pending',
+                    ]
+                );
+
+
+                Log::info('SkipCash payment completed', [
+                    'order_id' => $order->id
                 ]);
 
-                break;
+            }
 
 
-            case 'cancelled':
+        } else {
 
-                $order->update([
-                    'payment_status' => 'cancelled',
-                ]);
 
-                break;
+            // Any other status = not paid
+
+            $order->update([
+
+                'payment_status' =>
+                    'unpaid',
+
+            ]);
+
+
+            Log::warning('SkipCash payment failed', [
+                'order_id' => $order->id,
+                'status_id' => $statusId
+            ]);
+
         }
+
+
 
 
         return response()->json([
             'success' => true
         ]);
+
     }
 }

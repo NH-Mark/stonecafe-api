@@ -14,6 +14,7 @@ class Order extends Model
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
     use HasFactory;
+
     protected $fillable = [
         'order_no',
         'location_id',
@@ -31,13 +32,16 @@ class Order extends Model
         'total_amount',
         'notes',
         'ordered_at',
-        'order_sequence'
+        'order_sequence',
+        'payment_reference',
+        'payment_gateway',
+        'paid_at'
     ];
 
     protected $casts = [
-
         'ordered_at' => 'datetime',
         'created_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     public function orderType()

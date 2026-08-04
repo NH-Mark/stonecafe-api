@@ -76,21 +76,21 @@ class PaymentController extends Controller
             (int) $request->statusId === 2
         ) {
 
-            $order->update([
-                'payment_status' => 'paid',
-                'payment_reference' => $request->id,
-                'status' => Order::STATUS_CONFIRMED,
-            ]);
+            // $order->update([
+            //     'payment_status' => 'paid',
+            //     'payment_reference' => $request->id,
+            //     'status' => Order::STATUS_CONFIRMED,
+            // ]);
 
-            PrintJob::firstOrCreate(
-                [
-                    'order_id' => $order->id,
-                    'printer' => 'EPSON TM-T20III Receipt',
-                ],
-                [
-                    'status' => 'pending',
-                ]
-            );
+            // PrintJob::firstOrCreate(
+            //     [
+            //         'order_id' => $order->id,
+            //         'printer' => 'EPSON TM-T20III Receipt',
+            //     ],
+            //     [
+            //         'status' => 'pending',
+            //     ]
+            // );
 
 
             return redirect(

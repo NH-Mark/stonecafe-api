@@ -72,8 +72,3 @@ Route::prefix('customer')->group(function () {
     );
 });
 
-Route::post('/skipcash/webhook', [
-    PaymentWebhookController::class,
-    'handle'
-]);
-
