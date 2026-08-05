@@ -35,6 +35,7 @@ class CategoryController extends Controller
             ->orderBy(
                 'sort_order'
             )
+            ->where('active',1)
             ->get();
 
         return CategoryResource::collection(
