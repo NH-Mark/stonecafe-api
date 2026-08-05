@@ -16,7 +16,7 @@ Route::prefix('customer')->group(function () {
     // Categories
     Route::get(
         '/categories',
-        [CategoryController::class,'index']
+        [CategoryController::class,'list']
     );
 
 

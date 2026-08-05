@@ -35,6 +35,26 @@ class CategoryController extends Controller
             ->orderBy(
                 'sort_order'
             )
+            ->get();
+
+        return CategoryResource::collection(
+            $categories
+        );
+
+    }
+
+    public function list()
+    {
+
+        $categories =
+            MenuCategory::with([
+                'parent',
+                'children'
+            ])
+            ->withCount('menuItems')
+            ->orderBy(
+                'sort_order'
+            )
             ->where('active',1)
             ->get();
 
