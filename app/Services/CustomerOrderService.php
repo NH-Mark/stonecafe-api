@@ -66,11 +66,6 @@ class CustomerOrderService
                 ? $lastSequence + 1
                 : 1001;
 
-
-
-
-
-
             /*
             |--------------------------------------------------------------------------
             | Payment Method
