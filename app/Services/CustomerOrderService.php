@@ -64,7 +64,7 @@ class CustomerOrderService
             $sequence =
                 $lastSequence
                 ? $lastSequence + 1
-                : 100001;
+                : 1001;
 
 
 

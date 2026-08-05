@@ -43,7 +43,7 @@ class OrderController extends Controller
 
             $orderSequence = $lastSequence
                 ? $lastSequence + 1
-                : 100001;
+                : 1001;
 
             $order = Order::create([
 
