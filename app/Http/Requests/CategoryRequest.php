@@ -37,6 +37,16 @@ class CategoryRequest extends FormRequest
                 'string',
             ],
 
+            'name_ar' => [
+                'nullable',
+                'string',
+            ],
+
+            'description_ar' => [
+                'nullable',
+                'string',
+            ],
+
 
             'image' => [
                 'nullable',

@@ -25,6 +25,11 @@ class StoreModifierRequest extends FormRequest
                 'string',
                 'max:255',
             ],
+            'name_ar' => [
+                'nullable',
+                'string'
+            ],
+
 
             'price' => [
                 'required',

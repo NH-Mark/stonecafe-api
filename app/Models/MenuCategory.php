@@ -13,6 +13,8 @@ class MenuCategory extends Model
         'sort_order',
         'active',
         'parent_id',
+        'name_ar',
+        'description_ar'
     ];
 
     public function parent()

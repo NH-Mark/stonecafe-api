@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ModifierGroup extends Model
 {
-    protected $fillable = ['name','required','min_selection','max_selection','active','selection_type'];
+    protected $fillable = ['name','required','min_selection','max_selection','active','selection_type','name_ar'];
 
     protected $casts = [
         'active' => 'boolean',
@@ -19,8 +19,6 @@ class ModifierGroup extends Model
             Modifier::class
         );
     }
-
-
 
     public function menuItems()
     {

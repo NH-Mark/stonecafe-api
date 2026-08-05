@@ -21,7 +21,10 @@ class StoreModifierGroupRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-
+            'name_ar' => [
+                'nullable',
+                'string'
+            ],
             'selection_type' => [
                 'required',
                 Rule::in([
@@ -29,7 +32,6 @@ class StoreModifierGroupRequest extends FormRequest
                     'multiple',
                 ]),
             ],
-
             'required' => [
                 'required',
                 'boolean',

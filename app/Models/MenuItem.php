@@ -22,7 +22,9 @@ class MenuItem extends Model
         'barcode',
         'food_symbols',
         'menu_item_tags',
-        'modifier_groups'
+        'modifier_groups',
+        'name_ar',
+        'description_ar'
     ];
 
 

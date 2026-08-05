@@ -95,7 +95,7 @@ class PaymentController extends Controller
 
             return redirect(
                 config('app.customer_url')
-                    . '/order-success/'
+                    . '/en/order-success/'
                     . $order->id
             );
         }
@@ -108,7 +108,7 @@ class PaymentController extends Controller
 
         return redirect(
             config('app.customer_url')
-                . '/order-failed/'
+                . '/en/order-failed/'
                 . $order->id
         );
     }

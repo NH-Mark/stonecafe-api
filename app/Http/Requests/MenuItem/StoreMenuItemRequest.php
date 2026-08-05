@@ -31,6 +31,16 @@ class StoreMenuItemRequest extends FormRequest
                 'nullable',
                 'string'
             ],
+            'name_ar' => [
+                'nullable',
+                'string'
+            ],
+            'description_ar' => [
+                'nullable',
+                'string'
+            ],
+
+
 
             'sku' => [
                 'nullable',

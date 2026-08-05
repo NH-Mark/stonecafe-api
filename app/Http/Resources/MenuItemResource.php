@@ -20,6 +20,9 @@ class MenuItemResource extends JsonResource
 
             'name' => $this->name,
 
+            'name_ar' => $this->name_ar,
+            'description_ar' => $this->description_ar,
+
             'description' => $this->description,
 
 

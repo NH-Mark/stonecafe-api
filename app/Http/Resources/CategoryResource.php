@@ -19,8 +19,10 @@ class CategoryResource extends JsonResource
             'id' => $this->id,
 
             'name' => $this->name,
+            'name_ar' => $this->name_ar,
 
             'description' => $this->description,
+            'description_ar' => $this->description_ar,
 
             'image' => $this->image
             ? Storage::url(

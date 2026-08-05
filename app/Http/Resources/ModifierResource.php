@@ -18,6 +18,7 @@ class ModifierResource extends JsonResource
             'id' => $this->id,
 
             'name' => $this->name,
+            'name_ar' => $this->name_ar,
 
             'price' => (float) $this->price,
 
