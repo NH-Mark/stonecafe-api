@@ -50,7 +50,7 @@ class OrderController extends Controller
 
                 // 'order_no' => 'ORD-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4)),
                 'order_no' =>
-                    'ORD-' .
+                'ORD-' .
                     $orderSequence,
                 'order_sequence' => $orderSequence,
                 'location_id' => $request->location_id,
@@ -59,7 +59,7 @@ class OrderController extends Controller
                 'order_source_id' => $request->order_source_id,
                 'table_id' => $request->table_id,
                 'cashier_id' => Auth::id(),
-                'status' => Order::STATUS_PENDING,
+                'status' => Order::STATUS_CONFIRMED,
                 'payment_status' => 'unpaid',
                 'subtotal' => $request->subtotal,
                 'discount_amount' => $request->discount_amount,
@@ -91,7 +91,6 @@ class OrderController extends Controller
                         'price' => $modifier['price'],
 
                     ]);
-
                 }
             }
 
@@ -106,21 +105,21 @@ class OrderController extends Controller
             }
 
 
-           $order->payments()->create([
+            //    $order->payments()->create([
 
-                'payment_method_id' => $request->payment['payment_method_id'],
-                'amount' => $request->payment['amount'],
-                'reference' => $request->payment['reference'] ?? null,
-                'received_by' => Auth::id(),
-                'paid_at' => now(),
+            //         'payment_method_id' => $request->payment['payment_method_id'],
+            //         'amount' => $request->payment['amount'],
+            //         'reference' => $request->payment['reference'] ?? null,
+            //         'received_by' => Auth::id(),
+            //         'paid_at' => now(),
 
-            ]);
+            //     ]);
 
-            PrintJob::create([
-                'order_id'=>$order->id,
-                'printer'=>"EPSON TM-T20III Receipt",
-                'status'=>"pending"
-            ]);
+            // PrintJob::create([
+            //     'order_id' => $order->id,
+            //     'printer' => "EPSON TM-T20III Receipt",
+            //     'status' => "pending"
+            // ]);
 
 
             DB::commit();
@@ -137,7 +136,6 @@ class OrderController extends Controller
                 'orderType',
                 'orderSource'
             ]);
-
         });
 
         return new OrderResource($order);
@@ -196,7 +194,7 @@ class OrderController extends Controller
             'message' => 'Payment status updated'
         ]);
     }
-     public function updateOrderStatus(
+    public function updateOrderStatus(
         Request $request,
         Order $order
     ) {
@@ -213,6 +211,64 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order status updated'
+        ]);
+    }
+
+    public function storePayment(Request $request, Order $order)
+    {
+        $request->validate([
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+
+        DB::transaction(function () use ($request, $order) {
+
+            $order->payments()->create([
+
+                'payment_method_id' => $request->payment_method_id,
+                'amount' => $request->amount,
+                'reference' => $request->reference,
+                'received_by' => Auth::id(),
+                'paid_at' => now(),
+
+            ]);
+
+
+            $paidAmount = $order->payments()
+                ->sum('amount');
+
+
+            if ($paidAmount >= $order->total_amount) {
+
+                $status = 'paid';
+            } elseif ($paidAmount > 0) {
+
+                $status = 'partial';
+            } else {
+
+                $status = 'unpaid';
+            }
+
+
+            $order->update([
+                'payment_status' => $status
+            ]);
+
+            if ($status == 'paid') {
+
+                PrintJob::create([
+                    'order_id' => $order->id,
+                    'printer' => 'EPSON TM-T20III Receipt',
+                    'type' => 'RECEIPT',
+                    'status' => 'pending'
+                ]);
+            }
+        });
+
+
+        return response()->json([
+            'message' => 'Payment received'
         ]);
     }
 }

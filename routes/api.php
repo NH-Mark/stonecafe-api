@@ -97,9 +97,9 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/payment-status',
         [OrderController::class, 'updatePaymentStatus']
     );
-    Route::patch(
-        '/orders/{order}/order-status',
-        [OrderController::class, 'updateOrderStatus']
+    Route::post(
+        '/orders/{order}/payments',
+        [OrderController::class, 'storePayment']
     );
   
 

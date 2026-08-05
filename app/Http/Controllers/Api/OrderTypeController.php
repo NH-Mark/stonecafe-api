@@ -15,7 +15,7 @@ class OrderTypeController extends Controller
 
     public function index()
     {
-        $order_types = OrderType::get();
+        $order_types = OrderType::where('status',1)->get();
 
         return OrderTypeResource::collection($order_types);
     }
