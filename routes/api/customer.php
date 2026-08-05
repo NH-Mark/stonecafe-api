@@ -23,7 +23,7 @@ Route::prefix('customer')->group(function () {
     // Menu Items
     Route::get(
         '/menu',
-        [MenuItemController::class,'index']
+        [MenuItemController::class,'listMenu']
     );
     Route::get(
         '/menu-items/{id}',

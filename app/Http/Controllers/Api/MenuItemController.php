@@ -58,6 +58,29 @@ class MenuItemController extends Controller
         return MenuItemResource::collection($items);
     }
 
+    public function listMenu(Request $request)
+    {
+        $items = MenuItem::with([
+            'menu_category',
+            'modifierGroups.modifiers',
+            'foodSymbols',
+            'menuItemTags',
+        ])
+        ->where('active', 1)
+        ->whereHas('menu_category', function ($query) {
+            $query->where('active', 1);
+        })
+        ->when(
+            $request->category_id,
+            function ($query, $categoryId) {
+                $query->where('menu_category_id', $categoryId);
+            }
+        )
+        ->get();
+
+        return MenuItemResource::collection($items);
+    }
+
 
 
 
