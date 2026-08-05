@@ -8,6 +8,7 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\PrintJob;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -58,8 +59,8 @@ class OrderController extends Controller
                 'order_source_id' => $request->order_source_id,
                 'table_id' => $request->table_id,
                 'cashier_id' => Auth::id(),
-                'status' => Order::STATUS_CONFIRMED,
-                'payment_status' => 'paid',
+                'status' => Order::STATUS_PENDING,
+                'payment_status' => 'unpaid',
                 'subtotal' => $request->subtotal,
                 'discount_amount' => $request->discount_amount,
                 'tax_amount' => $request->tax_amount,
@@ -173,6 +174,45 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order deleted'
+        ]);
+    }
+
+    public function updatePaymentStatus(
+        Request $request,
+        Order $order
+    ) {
+        $request->validate([
+            'payment_status' => [
+                'required',
+                'in:unpaid,partial,paid,refunded'
+            ],
+        ]);
+
+        $order->update([
+            'payment_status' => $request->payment_status
+        ]);
+
+        return response()->json([
+            'message' => 'Payment status updated'
+        ]);
+    }
+     public function updateOrderStatus(
+        Request $request,
+        Order $order
+    ) {
+        $request->validate([
+            'status' => [
+                'required',
+                'in:pending,confirmed,preparing,completed,cancelled'
+            ],
+        ]);
+
+        $order->update([
+            'status' => $request->status
+        ]);
+
+        return response()->json([
+            'message' => 'Order status updated'
         ]);
     }
 }

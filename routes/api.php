@@ -93,7 +93,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('discounts', DiscountController::class);
     Route::apiResource('payment-methods', PaymentMethodController::class);
-
+    Route::patch(
+        '/orders/{order}/payment-status',
+        [OrderController::class, 'updatePaymentStatus']
+    );
+    Route::patch(
+        '/orders/{order}/order-status',
+        [OrderController::class, 'updateOrderStatus']
+    );
   
 
 });
