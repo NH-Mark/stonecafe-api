@@ -10,9 +10,15 @@ class Order extends Model
 
     const STATUS_PENDING = 'pending';
     const STATUS_CONFIRMED = 'confirmed';
-    const STATUS_PREPARING = 'preparing';
+    // const STATUS_PREPARING = 'preparing';
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
+
+
+    const KITCHEN_STATUS_PENDING = 'pending';
+    const KITCHEN_STATUS_PREPARING = 'preparing';
+    const KITCHEN_STATUS_READY = 'ready';
+
     use HasFactory;
 
     protected $fillable = [
@@ -35,13 +41,16 @@ class Order extends Model
         'order_sequence',
         'payment_reference',
         'payment_gateway',
-        'paid_at'
+        'paid_at',
+        'kitchen_status',
+        'completed_at'
     ];
 
     protected $casts = [
         'ordered_at' => 'datetime',
         'created_at' => 'datetime',
         'paid_at' => 'datetime',
+        'completed_at'=>'datetime'
     ];
 
     public function orderType()

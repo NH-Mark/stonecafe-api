@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\KitchenOrderCreated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\OrderRequest;
 use App\Http\Resources\OrderResource;
@@ -60,6 +61,7 @@ class OrderController extends Controller
                 'table_id' => $request->table_id,
                 'cashier_id' => Auth::id(),
                 'status' => Order::STATUS_CONFIRMED,
+                'kitchen_status'=>Order::KITCHEN_STATUS_PENDING,
                 'payment_status' => 'unpaid',
                 'subtotal' => $request->subtotal,
                 'discount_amount' => $request->discount_amount,
@@ -123,8 +125,8 @@ class OrderController extends Controller
 
 
             DB::commit();
-            return $order->load([
 
+            $order->load([
                 'items.menuItem',
                 'items.modifiers.modifier',
                 'payments.paymentMethod',
@@ -136,6 +138,10 @@ class OrderController extends Controller
                 'orderType',
                 'orderSource'
             ]);
+            event(
+                new KitchenOrderCreated($order)
+            );
+            return new OrderResource($order);
         });
 
         return new OrderResource($order);

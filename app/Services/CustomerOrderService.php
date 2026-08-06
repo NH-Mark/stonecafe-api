@@ -146,6 +146,8 @@ class CustomerOrderService
                     ? Order::STATUS_PENDING
                     : Order::STATUS_CONFIRMED,
 
+                'kitchen_status'=>Order::KITCHEN_STATUS_PENDING,
+
 
 
                 'payment_status'=>

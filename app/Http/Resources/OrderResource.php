@@ -28,6 +28,7 @@ class OrderResource extends JsonResource
 
             'status' => $this->status,
             'payment_status' => $this->payment_status,
+            'kitchen_status' => $this->kitchen_status,
             'subtotal' => $this->subtotal,
             'discount_amount' => $this->discount_amount,
             'tax_amount' => $this->tax_amount,

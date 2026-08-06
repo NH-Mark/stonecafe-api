@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\OrderTypeController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
+use App\Http\Controllers\Api\KitchenController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
 
@@ -100,6 +101,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post(
         '/orders/{order}/payments',
         [OrderController::class, 'storePayment']
+    );
+    Route::get(
+        '/kitchen/orders',
+        [KitchenController::class,'index']
+    );
+    Route::patch(
+        '/kitchen/orders/{order}/status',
+        [KitchenController::class,'updateStatus']
     );
   
 
