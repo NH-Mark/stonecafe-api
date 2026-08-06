@@ -259,9 +259,13 @@ class OrderController extends Controller
 
             $order->update([
                 'payment_status' => $status
+            
             ]);
 
             if ($status == 'paid') {
+                $order->update([
+                    'status' => Order::STATUS_COMPLETED
+                ]);
 
                 PrintJob::create([
                     'order_id' => $order->id,
