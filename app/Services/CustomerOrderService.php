@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\KitchenOrderCreated;
 use App\Models\Order;
 use App\Models\Customer;
 use App\Models\Location;
@@ -311,6 +312,10 @@ class CustomerOrderService
 
 
                 ]);
+
+                event(
+                    new KitchenOrderCreated($order)
+                );
 
 
             }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Customer;
 
+use App\Events\KitchenOrderCreated;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\PrintJob;
@@ -90,6 +91,10 @@ class PaymentWebhookController extends Controller
 
                 ]);
 
+                event(
+                    new KitchenOrderCreated($order)
+                );
+
 
 
                 PrintJob::firstOrCreate(
@@ -105,6 +110,8 @@ class PaymentWebhookController extends Controller
                             'pending',
                     ]
                 );
+
+                
 
 
                 Log::info('SkipCash payment completed', [
