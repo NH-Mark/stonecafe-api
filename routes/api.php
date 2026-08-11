@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\Customer\PaymentController;
+use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
@@ -21,6 +22,8 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\Api\KitchenController;
+use App\Http\Controllers\Api\RestaurantTableController;
+use App\Http\Controllers\Api\TablePaymentController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
 
@@ -102,6 +105,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/payments',
         [OrderController::class, 'storePayment']
     );
+     Route::post(
+        '/orders',
+        [OrderController::class, 'store']
+    );
     Route::get(
         '/kitchen/orders',
         [KitchenController::class,'index']
@@ -109,6 +116,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch(
         '/kitchen/orders/{order}/status',
         [KitchenController::class,'updateStatus']
+    );
+    Route::apiResource('/pos/tables', RestaurantTableController::class);
+
+    Route::post(
+        '/pos/dining-sessions',
+        [DiningSessionController::class, 'store']
+    );
+
+    Route::get(
+        '/pos/dining-sessions/{diningSession}',
+        [DiningSessionController::class, 'show']
+    );
+    Route::post(
+        '/orders/{order}/items',
+        [OrderController::class, 'addItems']
+    );
+    Route::post(
+        '/table-payments',
+        [TablePaymentController::class, 'store']
+    );
+
+    Route::post(
+        '/orders/{order}/order-status',
+        [OrderController::class, 'updateOrderStatus']
     );
   
 

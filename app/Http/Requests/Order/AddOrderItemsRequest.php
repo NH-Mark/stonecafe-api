@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Order;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Order\OrderRequest;
 
-class OrderRequest extends FormRequest
+class AddOrderItemsRequest extends OrderRequest
 {
-    public function authorize(): bool
+      public function authorize(): bool
     {
         return true;
     }
@@ -15,18 +15,18 @@ class OrderRequest extends FormRequest
     {
         return [
 
-            'location_id' => ['required', 'exists:locations,id'],
-            'order_type' => ['nullable'],
-            'order_source_id' => ['required', 'exists:order_sources,id'],
+            'location_id' => ['nullable', 'exists:locations,id'],
+            'order_type_id' => ['nullable', 'exists:order_types,id'],
+            'order_source_id' => ['nullable', 'exists:order_sources,id'],
 
             'customer_id' => ['nullable', 'exists:customers,id'],
             'table_id' => ['nullable', 'exists:restaurant_tables,id'],
 
-            'subtotal' => ['required', 'numeric'],
+            'subtotal' => ['nullable', 'numeric'],
             'discount_amount' => ['nullable', 'numeric'],
             'tax_amount' => ['nullable', 'numeric'],
             'service_charge' => ['nullable', 'numeric'],
-            'total_amount' => ['required', 'numeric'],
+            'total_amount' => ['nullable', 'numeric'],
 
             'notes' => ['nullable', 'string'],
 

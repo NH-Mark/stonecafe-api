@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Order extends Model
 {
@@ -43,7 +44,8 @@ class Order extends Model
         'payment_gateway',
         'paid_at',
         'kitchen_status',
-        'completed_at'
+        'completed_at',
+        'dining_session_id',
     ];
 
     protected $casts = [
@@ -123,5 +125,12 @@ class Order extends Model
     public function printJobs()
     {
         return $this->hasMany(PrintJob::class);
+    }
+
+    public function diningSession(): BelongsTo
+    {
+        return $this->belongsTo(
+            DiningSession::class
+        );
     }
 }
