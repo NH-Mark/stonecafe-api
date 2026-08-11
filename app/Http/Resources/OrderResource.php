@@ -47,6 +47,15 @@ class OrderResource extends JsonResource
                     'unit_price' => $item->unit_price,
                     'total_price' => $item->total_price,
                     'notes' => $item->notes,
+
+                    'discounts' => $item->discounts->map(function ($discount) {
+                        return [
+                            'id' => $discount->id,
+                            'name' => $discount->discount?->name,
+                            'amount' => $discount->amount,
+                        ];
+                    }),
+
                     'modifiers' => $item->modifiers->map(function ($modifier) {
                         return [
                             'modifier' => $modifier->modifier?->name,

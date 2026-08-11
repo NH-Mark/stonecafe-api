@@ -151,6 +151,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/order-status',
         [OrderController::class, 'updateOrderStatus']
     );
+    Route::patch(
+        '/pos/dining-sessions/{diningSession}/transfer-table',
+        [DiningSessionController::class, 'transferTable']
+    );
   
 
 });

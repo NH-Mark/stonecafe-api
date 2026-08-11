@@ -16,13 +16,20 @@ class TablePaymentController extends Controller
     /**
      * Pay multiple orders belonging to the same dining session.
      *
-     * Creates:
+     * Supports multiple payment methods.
      *
-     * - One Payment record per order.
-     * - One PrintJob for the complete table payment.
+     * Example:
      *
-     * If all non-cancelled orders are completed,
-     * the dining session is automatically closed.
+     * Order 101 = 30 QAR
+     * Order 102 = 7 QAR
+     *
+     * Payments:
+     *
+     * Cash = 30
+     * Card = 7
+     *
+     * The backend allocates the payment splits across
+     * the selected orders.
      */
     public function store(Request $request)
     {
@@ -44,18 +51,42 @@ class TablePaymentController extends Controller
                 'exists:orders,id',
             ],
 
-            'paymentMethodId' => [
+            /*
+            |--------------------------------------------------------------------------
+            | Multiple payments
+            |--------------------------------------------------------------------------
+            */
+
+            'payments' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'payments.*.payment_method_id' => [
                 'required',
                 'integer',
                 'exists:payment_methods,id',
             ],
 
-            'amount' => [
+            'payments.*.amount' => [
                 'required',
                 'numeric',
-                'min:0',
+                'min:0.01',
+            ],
+
+            'payments.*.reference' => [
+                'nullable',
+                'string',
+                'max:255',
             ],
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize order IDs
+        |--------------------------------------------------------------------------
+        */
 
         $orderIds = collect(
             $validated['orderIds']
@@ -66,9 +97,58 @@ class TablePaymentController extends Controller
             ->unique()
             ->values();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize payments
+        |--------------------------------------------------------------------------
+        */
+
+        $paymentsInput = collect(
+            $validated['payments']
+        )
+            ->map(function ($payment) {
+                return [
+                    'payment_method_id' =>
+                        (int) $payment['payment_method_id'],
+
+                    'amount' =>
+                        round(
+                            (float) $payment['amount'],
+                            2
+                        ),
+
+                    'reference' =>
+                        $payment['reference'] ?? null,
+                ];
+            })
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Requested payment total
+        |--------------------------------------------------------------------------
+        */
+
+        $requestedPaymentTotal = round(
+            $paymentsInput->sum(
+                fn ($payment) =>
+                    $payment['amount']
+            ),
+            2
+        );
+
+        if ($requestedPaymentTotal <= 0) {
+            return response()->json([
+                'message' =>
+                    'Payment amount must be greater than zero.',
+            ], 422);
+        }
+
         return DB::transaction(function () use (
             $validated,
-            $orderIds
+            $orderIds,
+            $paymentsInput,
+            $requestedPaymentTotal
         ) {
 
             /*
@@ -185,38 +265,38 @@ class TablePaymentController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $serverTotal =
+            $serverTotal = round(
                 $orders->sum(
                     fn ($order) =>
                         (float) $order->total_amount
-                );
-
-            $requestedAmount =
-                (float) $validated['amount'];
+                ),
+                2
+            );
 
             /*
             |--------------------------------------------------------------------------
-            | Verify amount
+            | Verify payment split total
             |--------------------------------------------------------------------------
             */
 
             if (
                 round($serverTotal, 2) !==
-                round($requestedAmount, 2)
+                round($requestedPaymentTotal, 2)
             ) {
                 return response()->json([
                     'message' =>
                         'Payment amount does not match the selected orders.',
 
                     'server_amount' =>
-                        round(
-                            $serverTotal,
-                            2
-                        ),
+                        $serverTotal,
 
                     'requested_amount' =>
+                        $requestedPaymentTotal,
+
+                    'remaining_amount' =>
                         round(
-                            $requestedAmount,
+                            $serverTotal -
+                            $requestedPaymentTotal,
                             2
                         ),
                 ], 422);
@@ -224,65 +304,204 @@ class TablePaymentController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Create one payment per order
+            | Create payment records
             |--------------------------------------------------------------------------
+            |
+            | Payments are allocated against orders sequentially.
+            |
+            | Example:
+            |
+            | Order 1 = 30
+            | Order 2 = 7
+            |
+            | Cash = 20
+            | Card = 17
+            |
+            | Result:
+            |
+            | Order 1:
+            |   Cash 20
+            |   Card 10
+            |
+            | Order 2:
+            |   Card 7
+            |
             */
 
-            $payments = [];
+            $createdPayments = [];
 
-            foreach ($orders as $order) {
+            $orderIndex = 0;
 
-                $payment = Payment::create([
-                    'order_id' =>
-                        $order->id,
+            $currentOrder =
+                $orders->get(
+                    $orderIndex
+                );
 
-                    'payment_method_id' =>
-                        $validated[
-                            'paymentMethodId'
-                        ],
+            $remainingOrderAmount =
+                round(
+                    (float) $currentOrder->total_amount,
+                    2
+                );
 
-                    'amount' =>
-                        (float) $order->total_amount,
+            foreach (
+                $paymentsInput as $paymentInput
+            ) {
 
-                    'reference' =>
-                        null,
+                $remainingPaymentAmount =
+                    round(
+                        (float) $paymentInput['amount'],
+                        2
+                    );
 
-                    'received_by' =>
-                        auth()->id(),
+                while (
+                    $remainingPaymentAmount > 0.001 &&
+                    $currentOrder
+                ) {
 
-                    'paid_at' =>
-                        now(),
-                ]);
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Amount allocated to current order
+                    |--------------------------------------------------------------------------
+                    */
 
-                $payments[] = $payment;
+                    $allocation = round(
+                        min(
+                            $remainingPaymentAmount,
+                            $remainingOrderAmount
+                        ),
+                        2
+                    );
+
+                    if ($allocation <= 0) {
+                        break;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Create payment
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $payment =
+                        Payment::create([
+                            'order_id' =>
+                                $currentOrder->id,
+
+                            'payment_method_id' =>
+                                $paymentInput[
+                                    'payment_method_id'
+                                ],
+
+                            'amount' =>
+                                $allocation,
+
+                            'reference' =>
+                                $paymentInput[
+                                    'reference'
+                                ],
+
+                            'received_by' =>
+                                auth()->id(),
+
+                            'paid_at' =>
+                                now(),
+                        ]);
+
+                    $createdPayments[] =
+                        $payment;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Reduce payment remaining
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $remainingPaymentAmount =
+                        round(
+                            $remainingPaymentAmount -
+                            $allocation,
+                            2
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Reduce order remaining
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $remainingOrderAmount =
+                        round(
+                            $remainingOrderAmount -
+                            $allocation,
+                            2
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Move to next order
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $remainingOrderAmount <=
+                        0.001
+                    ) {
+
+                        $currentOrder =
+                            $orders->get(
+                                ++$orderIndex
+                            );
+
+                        if ($currentOrder) {
+
+                            $remainingOrderAmount =
+                                round(
+                                    (float)
+                                    $currentOrder->total_amount,
+                                    2
+                                );
+
+                        }
+                    }
+                }
 
                 /*
                 |--------------------------------------------------------------------------
-                | Complete order
+                | Safety check
                 |--------------------------------------------------------------------------
                 */
+
+                if (
+                    $remainingPaymentAmount >
+                    0.001
+                ) {
+                    return response()->json([
+                        'message' =>
+                            'Unable to allocate payment amount to selected orders.',
+                    ], 422);
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Complete selected orders
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($orders as $order) {
 
                 $order->update([
                     'status' =>
                         'completed',
+
+                    'payment_status'=>'paid',
                 ]);
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Create ONE print job for the entire table payment
+            | Create ONE print job
             |--------------------------------------------------------------------------
-            |
-            | Do NOT create one PrintJob per order here.
-            |
-            | The print job represents the receipt/batch:
-            |
-            | Order 101
-            | Order 102
-            | Order 103
-            |
-            | All printed together.
-            |
             */
 
             $paymentBatchId =
@@ -307,6 +526,12 @@ class TablePaymentController extends Controller
                 'status' =>
                     'pending',
             ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Attach all selected orders
+            |--------------------------------------------------------------------------
+            */
 
             $printJob->orders()->attach(
                 $orders->pluck('id')
@@ -349,9 +574,13 @@ class TablePaymentController extends Controller
             */
 
             if ($allOrdersCompleted) {
+
                 $diningSession->update([
                     'status' =>
                         'closed',
+
+                    'closed_at' =>
+                        now(),
                 ]);
             }
 
@@ -377,21 +606,22 @@ class TablePaymentController extends Controller
                     $allOrdersCompleted,
 
                 'orderIds' =>
-                    $orderIds,
-
-                'paymentMethodId' =>
-                    (int) $validated[
-                        'paymentMethodId'
-                    ],
+                    $orders
+                        ->pluck('id')
+                        ->map(
+                            fn ($id) =>
+                                (int) $id
+                        )
+                        ->values(),
 
                 'amount' =>
-                    round(
-                        $serverTotal,
-                        2
-                    ),
+                    $serverTotal,
 
                 'payments' =>
-                    $payments,
+                    $createdPayments,
+
+                'paymentCount' =>
+                    count($createdPayments),
 
                 'printJobId' =>
                     $printJob->id,

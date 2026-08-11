@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DiningSession;
 use App\Models\RestaurantTable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -71,7 +72,7 @@ class DiningSessionController extends Controller
             return DiningSession::create([
                 'table_id' =>
                 $table->id,
-                'guest_count'=>1,
+                'guest_count' => 1,
 
                 'status' =>
                 'open',
@@ -140,82 +141,82 @@ class DiningSessionController extends Controller
 */
 
     private function transformSession(
-    DiningSession $session
-): array {
+        DiningSession $session
+    ): array {
 
-    return [
-
-        'id' =>
-            $session->id,
-
-        
-
-        'table' => [
+        return [
 
             'id' =>
+            $session->id,
+
+
+
+            'table' => [
+
+                'id' =>
                 $session->table?->id,
 
-            'name' =>
+                'name' =>
                 $session->table?->name,
 
-        ],
+            ],
 
-        'status' =>
+            'status' =>
             $session->status,
 
-        'subtotal' =>
+            'subtotal' =>
             (float) $session->subtotal,
 
-        'discountAmount' =>
+            'discountAmount' =>
             (float) $session->discount_amount,
 
-        'total' =>
+            'total' =>
             (float) $session->total,
 
-        'openedAt' =>
+            'openedAt' =>
             $session->opened_at?->toISOString(),
 
-        'closedAt' =>
+            'closedAt' =>
             $session->closed_at?->toISOString(),
 
-        'orders' =>
+            'orders' =>
             $session->orders
                 ->map(function ($order) {
 
                     return [
 
                         'id' =>
-                            $order->id,
+                        $order->id,
 
                         'order_no' =>
-                            $order->order_no,
+                        $order->order_no,
 
                         'status' =>
-                            $order->status,
+                        $order->status,
 
                         'kitchenStatus' =>
-                            $order->kitchen_status,
+                        $order->kitchen_status,
 
                         'total' =>
-                            (float) $order->total_amount,
+                        (float) $order->total_amount,
 
                         'subtotal' =>
-                            (float) $order->subtotal,
+                        (float) $order->subtotal,
 
                         'discountAmount' =>
-                            (float) $order->discount_amount,
+                        (float) $order->discount_amount,
 
                         'taxAmount' =>
-                            (float) $order->tax_amount,
+                        (float) $order->tax_amount,
 
                         'serviceCharge' =>
-                            (float) $order->service_charge,
+                        (float) $order->service_charge,
 
                         'notes' =>
-                            $order->notes,
+                        $order->notes,
 
                         'createdAt' =>
-                            $order->created_at?->toISOString(),
+                        $order->created_at?->toISOString(),
 
                         /*
                         |--------------------------------------------------------------------------
@@ -224,76 +225,74 @@ class DiningSessionController extends Controller
                         */
 
                         'items' =>
-                            $order->items
-                                ->map(function ($item) {
+                        $order->items
+                            ->map(function ($item) {
 
-                                    return [
+                                return [
 
-                                        'id' =>
-                                            $item->id,
+                                    'id' =>
+                                    $item->id,
 
-                                        'menuItemId' =>
-                                            $item->menu_item_id,
+                                    'menuItemId' =>
+                                    $item->menu_item_id,
 
-                                        'quantity' =>
-                                            (int) $item->quantity,
+                                    'quantity' =>
+                                    (int) $item->quantity,
 
-                                        'unitPrice' =>
-                                            (float) $item->unit_price,
+                                    'unitPrice' =>
+                                    (float) $item->unit_price,
 
-                                        'totalPrice' =>
-                                            (float) $item->total_price,
+                                    'totalPrice' =>
+                                    (float) $item->total_price,
 
-                                        'notes' =>
-                                            $item->notes,
+                                    'notes' =>
+                                    $item->notes,
 
-                                        'menuItem' =>
-                                            $item->menuItem,
+                                    'menuItem' =>
+                                    $item->menuItem,
 
-                                        /*
+                                    /*
                                         |--------------------------------------------------------------------------
                                         | Modifiers
                                         |--------------------------------------------------------------------------
                                         */
 
-                                        'modifiers' =>
-                                            $item->modifiers
-                                                ->map(function ($modifier) {
+                                    'modifiers' =>
+                                    $item->modifiers
+                                        ->map(function ($modifier) {
 
-                                                    return [
+                                            return [
 
-                                                        'id' =>
-                                                            $modifier->modifier_id,
+                                                'id' =>
+                                                $modifier->modifier_id,
 
-                                                        'quantity' =>
-                                                            (int) $modifier->quantity,
+                                                'quantity' =>
+                                                (int) $modifier->quantity,
 
-                                                        'price' =>
-                                                            (float) $modifier->price,
+                                                'price' =>
+                                                (float) $modifier->price,
 
-                                                        'modifier' =>
-                                                            $modifier->modifier,
+                                                'modifier' =>
+                                                $modifier->modifier,
 
-                                                    ];
+                                            ];
+                                        })
+                                        ->values(),
 
-                                                })
-                                                ->values(),
-
-                                        /*
+                                    /*
                                         |--------------------------------------------------------------------------
                                         | ITEM DISCOUNTS
                                         |--------------------------------------------------------------------------
                                         */
 
-                                        'discount' =>
-                                            $item->discounts
-                                                ->first()?->discount,
+                                    'discount' =>
+                                    $item->discounts
+                                        ->first()?->discount,
 
 
-                                    ];
-
-                                })
-                                ->values(),
+                                ];
+                            })
+                            ->values(),
 
                         /*
                         |--------------------------------------------------------------------------
@@ -302,30 +301,167 @@ class DiningSessionController extends Controller
                         */
 
                         'discounts' =>
-                            $order->discounts
-                                ->map(function ($orderDiscount) {
+                        $order->discounts
+                            ->map(function ($orderDiscount) {
 
-                                    return [
+                                return [
 
-                                        'id' =>
-                                            $orderDiscount->id,
+                                    'id' =>
+                                    $orderDiscount->id,
 
-                                        'amount' =>
-                                            (float) $orderDiscount->amount,
+                                    'amount' =>
+                                    (float) $orderDiscount->amount,
 
-                                        'discount' =>
-                                            $orderDiscount->discount,
+                                    'discount' =>
+                                    $orderDiscount->discount,
 
-                                    ];
-
-                                })
-                                ->values(),
+                                ];
+                            })
+                            ->values(),
 
                     ];
-
                 })
                 ->values(),
 
-    ];
-}
+        ];
+    }
+
+    public function transferTable(
+        Request $request,
+        DiningSession $diningSession
+    ): JsonResponse {
+        $validated = $request->validate([
+            'table_id' => [
+                'required',
+                'integer',
+                'exists:restaurant_tables,id',
+            ],
+        ]);
+
+        $newTableId =
+            (int) $validated['table_id'];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Prevent transferring to the same table
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            (int) $diningSession->table_id ===
+            $newTableId
+        ) {
+            return response()->json([
+                'message' =>
+                'The dining session is already assigned to this table.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Transaction
+        |--------------------------------------------------------------------------
+        */
+
+        $updatedSession =
+            DB::transaction(
+                function () use (
+                    $diningSession,
+                    $newTableId
+                ) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Lock destination table
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $newTable =
+                        RestaurantTable::query()
+                        ->lockForUpdate()
+                        ->findOrFail(
+                            $newTableId
+                        );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Make sure destination table isn't occupied
+                    |--------------------------------------------------------------------------
+                    |
+                    | We determine occupancy from active dining sessions rather
+                    | than trusting a potentially stale `status` column.
+                    |
+                    */
+
+                    $destinationOccupied =
+                        DiningSession::query()
+                        ->where(
+                            'table_id',
+                            $newTable->id
+                        )
+                        ->whereIn(
+                            'status',
+                            [
+                                'open',
+                                'active',
+                            ]
+                        )
+                        ->exists();
+
+                    if (
+                        $destinationOccupied
+                    ) {
+                        abort(
+                            422,
+                            'This table is already occupied.'
+                        );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Optional protection for billing tables
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $newTable->status ===
+                        'billing'
+                    ) {
+                        abort(
+                            422,
+                            'This table is currently being billed.'
+                        );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Transfer
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $diningSession->update([
+                        'table_id' =>
+                        $newTable->id,
+                    ]);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Reload relationships
+                    |--------------------------------------------------------------------------
+                    */
+
+                    return $diningSession
+                        ->fresh([
+                            'table',
+                            'orders',
+                        ]);
+                }
+            );
+
+        return response()->json([
+            'message' =>
+            'Dining session transferred successfully.',
+            'data' =>
+            $updatedSession,
+        ]);
+    }
 }

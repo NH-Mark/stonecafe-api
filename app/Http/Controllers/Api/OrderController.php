@@ -31,6 +31,7 @@ class OrderController extends Controller
             'cashier',
             'location',
             'items.menuItem',
+            'items.discounts',
             'payments.paymentMethod',
             'payments.receivedBy',
         ])
@@ -823,245 +824,367 @@ class OrderController extends Controller
             'message' => 'Order status updated'
         ]);
     }
+public function storePayment(
+    Request $request,
+    Order $order
+) {
+    $validated = $request->validate([
+        'payments' => [
+            'required',
+            'array',
+            'min:1',
+        ],
 
-    public function storePayment(
-        Request $request,
-        Order $order
+        'payments.*.payment_method_id' => [
+            'required',
+            'exists:payment_methods,id',
+        ],
+
+        'payments.*.amount' => [
+            'required',
+            'numeric',
+            'min:0.01',
+        ],
+
+        'payments.*.reference' => [
+            'nullable',
+            'string',
+        ],
+    ]);
+
+    $result = DB::transaction(function () use (
+        $validated,
+        $order
     ) {
-        $request->validate([
-            'payment_method_id' => 'required|exists:payment_methods,id',
-            'amount' => 'required|numeric|min:0',
-            'reference' => 'nullable|string',
-        ]);
 
-        $result = DB::transaction(function () use (
-            $request,
-            $order
-        ) {
-
-            /*
+        /*
         |--------------------------------------------------------------------------
         | Lock order
         |--------------------------------------------------------------------------
         */
 
-            $order = Order::query()
-                ->lockForUpdate()
-                ->findOrFail($order->id);
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($order->id);
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
-        | Create payment
+        | Get current paid amount
         |--------------------------------------------------------------------------
         */
 
-            $payment = $order->payments()->create([
-                'payment_method_id' => $request->payment_method_id,
-                'amount' => $request->amount,
-                'reference' => $request->reference,
-                'received_by' => Auth::id(),
-                'paid_at' => now(),
+        $paidAmount = (float) $order
+            ->payments()
+            ->sum('amount');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get order total
+        |--------------------------------------------------------------------------
+        */
+
+        $orderTotal = (float) $order->total_amount;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate remaining amount
+        |--------------------------------------------------------------------------
+        */
+
+        $remainingAmount = max(
+            $orderTotal - $paidAmount,
+            0
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate total requested payment
+        |--------------------------------------------------------------------------
+        |
+        | Example:
+        |
+        | Payment 1 = 30 Cash
+        | Payment 2 = 7 Card
+        |
+        | Total requested = 37
+        |
+        */
+
+        $paymentAmount = collect($validated['payments'])
+            ->sum(function ($payment) {
+                return (float) $payment['amount'];
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Do not allow payment above remaining balance
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            round($paymentAmount, 2) >
+            round($remainingAmount, 2)
+        ) {
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payments' => [
+                    'Payment amount cannot exceed the remaining balance of '
+                        . number_format($remainingAmount, 2)
+                        . '.',
+                ],
             ]);
+        }
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
-        | Calculate paid amount
+        | Create payments
         |--------------------------------------------------------------------------
         */
 
-            $paidAmount =
-                $order->payments()->sum('amount');
+        $payments = [];
+
+        foreach ($validated['payments'] as $paymentData) {
+
+            $payments[] = $order->payments()->create([
+                'payment_method_id' =>
+                    $paymentData['payment_method_id'],
+
+                'amount' =>
+                    $paymentData['amount'],
+
+                'reference' =>
+                    $paymentData['reference'] ?? null,
+
+                'received_by' =>
+                    Auth::id(),
+
+                'paid_at' =>
+                    now(),
+            ]);
+        }
 
 
-            /*
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate new paid amount
+        |--------------------------------------------------------------------------
+        */
+
+        $paidAmount = (float) $order
+            ->payments()
+            ->sum('amount');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate new remaining amount
+        |--------------------------------------------------------------------------
+        */
+
+        $remainingAmount = max(
+            $orderTotal - $paidAmount,
+            0
+        );
+
+
+        /*
         |--------------------------------------------------------------------------
         | Determine payment status
         |--------------------------------------------------------------------------
         */
 
-            if (
-                $paidAmount >=
-                $order->total_amount
-            ) {
+        if (
+            round($remainingAmount, 2) <= 0
+        ) {
 
-                $paymentStatus = 'paid';
-            } elseif (
-                $paidAmount > 0
-            ) {
+            $paymentStatus = 'paid';
 
-                $paymentStatus = 'partial';
-            } else {
+        } elseif (
+            $paidAmount > 0
+        ) {
 
-                $paymentStatus = 'unpaid';
-            }
+            $paymentStatus = 'partial';
+
+        } else {
+
+            $paymentStatus = 'unpaid';
+        }
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
         | Update order payment status
         |--------------------------------------------------------------------------
         */
 
-            $order->update([
-                'payment_status' =>
-                $paymentStatus,
-            ]);
+        $order->update([
+            'payment_status' => $paymentStatus,
+        ]);
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
         | Session closed?
         |--------------------------------------------------------------------------
         */
 
-            $sessionClosed = false;
+        $sessionClosed = false;
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
         | Order fully paid
         |--------------------------------------------------------------------------
         */
 
-            if (
-                $paymentStatus === 'paid'
-            ) {
+        if (
+            $paymentStatus === 'paid'
+        ) {
 
-                $order->update([
-                    'status' =>
-                    Order::STATUS_COMPLETED,
-                ]);
-
-
-                /*
+            /*
             |--------------------------------------------------------------------------
-            | Print receipt
+            | Complete order
             |--------------------------------------------------------------------------
             */
 
-                PrintJob::create([
-                    'order_id' =>
+            $order->update([
+                'status' => Order::STATUS_COMPLETED,
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create receipt print job
+            |--------------------------------------------------------------------------
+            */
+
+            PrintJob::create([
+                'order_id' =>
                     $order->id,
 
-                    'dining_session_id' => null,
-                    'payment_batch_id' => null,
-                    'printer' =>
+                'dining_session_id' =>
+                    null,
+
+                'payment_batch_id' =>
+                    null,
+
+                'printer' =>
                     'EPSON TM-T20III Receipt',
 
-                    'type' =>
+                'type' =>
                     'RECEIPT',
 
-                    'status' =>
+                'status' =>
                     'pending',
-                ]);
+            ]);
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
             | Check dining session
             |--------------------------------------------------------------------------
             */
 
-                $session =
-                    $order->diningSession;
+            $session = $order->diningSession;
 
+            if ($session) {
 
-                if ($session) {
-
-                    /*
+                /*
                 |--------------------------------------------------------------------------
-                | Check for any other unpaid/active orders
-                |--------------------------------------------------------------------------
-                |
-                | The current order is already paid, so we only
-                | need to look at the OTHER orders.
-                |
-                */
-
-                    $hasUnpaidOrders =
-                        $session
-                        ->orders()
-                        ->where(
-                            'id',
-                            '!=',
-                            $order->id
-                        )
-                        ->where(
-                            'payment_status',
-                            '!=',
-                            'paid'
-                        )
-                        ->exists();
-
-
-                    /*
-                |--------------------------------------------------------------------------
-                | This was the last unpaid order
+                | Check for other unpaid orders
                 |--------------------------------------------------------------------------
                 */
 
-                    if (
-                        !$hasUnpaidOrders
-                    ) {
+                $hasUnpaidOrders = $session
+                    ->orders()
+                    ->where(
+                        'id',
+                        '!=',
+                        $order->id
+                    )
+                    ->where(
+                        'payment_status',
+                        '!=',
+                        'paid'
+                    )
+                    ->exists();
 
-                        $session->update([
-                            'status' =>
-                            'closed',
 
-                            'closed_at' =>
-                            now(),
-                        ]);
+                /*
+                |--------------------------------------------------------------------------
+                | Last unpaid order
+                |--------------------------------------------------------------------------
+                */
 
+                if (!$hasUnpaidOrders) {
 
-                        $sessionClosed = true;
-                    }
+                    $session->update([
+                        'status' => 'closed',
+                        'closed_at' => now(),
+                    ]);
+
+                    $sessionClosed = true;
                 }
             }
+        }
 
 
-            /*
+        /*
         |--------------------------------------------------------------------------
         | Return transaction result
         |--------------------------------------------------------------------------
         */
 
-            return [
-
-                'order_paid' =>
+        return [
+            'order_paid' =>
                 $paymentStatus === 'paid',
 
-                'payment_status' =>
+            'payment_status' =>
                 $paymentStatus,
 
-                'session_closed' =>
+            'paid_amount' =>
+                round($paidAmount, 2),
+
+            'remaining_amount' =>
+                round($remainingAmount, 2),
+
+            'session_closed' =>
                 $sessionClosed,
+        ];
+    });
 
-            ];
-        });
 
-
-        /*
+    /*
     |--------------------------------------------------------------------------
     | Response
     |--------------------------------------------------------------------------
     */
 
-        return response()->json([
-
-            'message' =>
+    return response()->json([
+        'message' =>
             'Payment received',
 
-            'order_paid' =>
+        'order_paid' =>
             $result['order_paid'],
 
-            'payment_status' =>
+        'payment_status' =>
             $result['payment_status'],
 
-            'session_closed' =>
-            $result['session_closed'],
+        'paid_amount' =>
+            $result['paid_amount'],
 
-        ]);
-    }
+        'remaining_amount' =>
+            $result['remaining_amount'],
+
+        'session_closed' =>
+            $result['session_closed'],
+    ]);
+}
+
 }
