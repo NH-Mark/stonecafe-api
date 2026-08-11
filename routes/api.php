@@ -68,6 +68,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('categories', CategoryController::class);
     Route::apiResource('menu-items', MenuItemController::class);
+
+     Route::get(
+        '/menu-categories',
+        [CategoryController::class, 'index']
+    );
+
     Route::get(
         '/menu-items/{id}',
         [MenuItemController::class, 'show']

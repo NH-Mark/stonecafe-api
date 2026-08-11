@@ -8,8 +8,7 @@ use App\Http\Requests\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\MenuCategory;
 use App\Services\CategoryService;
-
-
+use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
@@ -21,26 +20,21 @@ class CategoryController extends Controller
 
     }
 
-
-
-    public function index()
+    public function index(Request $request)
     {
-
-        $categories =
-            MenuCategory::with([
-                'parent',
-                'children'
-            ])
-            ->withCount('menuItems')
-            ->orderBy(
-                'sort_order'
+        $categories = MenuCategory::with([
+            'parent',
+            'children',
+        ])
+            ->when(
+                $request->boolean('active'),
+                fn ($query) => $query->where('active', true)
             )
+            ->withCount('menuItems')
+            ->orderBy('sort_order')
             ->get();
 
-        return CategoryResource::collection(
-            $categories
-        );
-
+        return CategoryResource::collection($categories);
     }
 
     public function list()

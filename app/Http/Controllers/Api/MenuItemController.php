@@ -35,7 +35,7 @@ class MenuItemController extends Controller
             'data' =>  new MenuItemResource($menuItem),
         ]);
     }
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $perPage = min(
             $request->integer('per_page', 10),
@@ -48,25 +48,44 @@ class MenuItemController extends Controller
             'foodSymbols',
             'menuItemTags',
         ])
+            // Filter by category
             ->when(
-                $request->category_id,
-                function ($query, $categoryId) {
+                $request->filled('category_id'),
+                function ($query) use ($request) {
                     $query->where(
                         'menu_category_id',
-                        $categoryId
+                        $request->integer('category_id')
                     );
                 }
             )
+
+            // Search
             ->when(
-                $request->search,
-                function ($query, $search) {
+                $request->filled('search'),
+                function ($query) use ($request) {
                     $query->where(
                         'name',
                         'like',
-                        "%{$search}%"
+                        '%' . $request->search . '%'
                     );
                 }
             )
+
+            // Active POS items + active categories
+            ->when(
+                $request->boolean('active'),
+                function ($query) {
+                    $query
+                        ->where('active', true)
+                        ->whereHas('menu_category', function ($categoryQuery) {
+                            $categoryQuery->where(
+                                'active',
+                                true
+                            );
+                        });
+                }
+            )
+
             ->latest()
             ->paginate($perPage);
 
