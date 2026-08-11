@@ -75,6 +75,10 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::get(
+        '/menu-items-list',
+        [MenuItemController::class,'listMenu']);
+
+    Route::get(
         '/menu-items/{id}',
         [MenuItemController::class, 'show']
     );
