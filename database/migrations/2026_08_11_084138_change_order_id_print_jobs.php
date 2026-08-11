@@ -8,9 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('print_jobs', function (Blueprint $table) {
-            $table->dropForeign(['order_id']);
-        });
+        // Schema::table('print_jobs', function (Blueprint $table) {
+        //     $table->dropForeign(['order_id']);
+        // });
 
         Schema::table('print_jobs', function (Blueprint $table) {
             $table->unsignedBigInteger('order_id')
@@ -26,9 +26,9 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('print_jobs', function (Blueprint $table) {
-            $table->dropForeign(['order_id']);
-        });
+        // Schema::table('print_jobs', function (Blueprint $table) {
+        //     $table->dropForeign(['order_id']);
+        // });
 
         Schema::table('print_jobs', function (Blueprint $table) {
             $table->unsignedBigInteger('order_id')
