@@ -14,10 +14,7 @@ class MenuItemController extends Controller
 {
     public function __construct(
         private MenuItemService $menuItemService
-    )
-    {
-
-    }
+    ) {}
 
     public function show($id)
     {
@@ -29,8 +26,8 @@ class MenuItemController extends Controller
             'foodSymbols',
             'menuItemTags'
         ])
-        ->withCount('modifierGroups')
-        ->findOrFail($id);
+            ->withCount('modifierGroups')
+            ->findOrFail($id);
 
 
         return response()->json([
@@ -38,25 +35,44 @@ class MenuItemController extends Controller
             'data' =>  new MenuItemResource($menuItem),
         ]);
     }
-
-   public function index(Request $request)
+    public function index(Request $request)
     {
-           $items = MenuItem::with([
+        $perPage = min(
+            $request->integer('per_page', 10),
+            100
+        );
+
+        $items = MenuItem::with([
             'menu_category',
-            'modifierGroups.modifiers',  
+            'modifierGroups.modifiers',
             'foodSymbols',
             'menuItemTags',
         ])
-        ->when(
-            $request->category_id,
-            function ($query, $categoryId) {
-                $query->where('menu_category_id', $categoryId);
-            }
-        )
-        ->get();
+            ->when(
+                $request->category_id,
+                function ($query, $categoryId) {
+                    $query->where(
+                        'menu_category_id',
+                        $categoryId
+                    );
+                }
+            )
+            ->when(
+                $request->search,
+                function ($query, $search) {
+                    $query->where(
+                        'name',
+                        'like',
+                        "%{$search}%"
+                    );
+                }
+            )
+            ->latest()
+            ->paginate($perPage);
 
         return MenuItemResource::collection($items);
     }
+
 
     public function listMenu(Request $request)
     {
@@ -66,17 +82,17 @@ class MenuItemController extends Controller
             'foodSymbols',
             'menuItemTags',
         ])
-        ->where('active', 1)
-        ->whereHas('menu_category', function ($query) {
-            $query->where('active', 1);
-        })
-        ->when(
-            $request->category_id,
-            function ($query, $categoryId) {
-                $query->where('menu_category_id', $categoryId);
-            }
-        )
-        ->get();
+            ->where('active', 1)
+            ->whereHas('menu_category', function ($query) {
+                $query->where('active', 1);
+            })
+            ->when(
+                $request->category_id,
+                function ($query, $categoryId) {
+                    $query->where('menu_category_id', $categoryId);
+                }
+            )
+            ->get();
 
         return MenuItemResource::collection($items);
     }
@@ -86,20 +102,18 @@ class MenuItemController extends Controller
 
     public function store(
         StoreMenuItemRequest $request
-    )
-    {
+    ) {
 
         $item =
             $this->menuItemService
-                ->create(
-                    $request->validated()
-                );
+            ->create(
+                $request->validated()
+            );
 
 
         return new MenuItemResource(
             $item
         );
-
     }
 
 
@@ -109,28 +123,25 @@ class MenuItemController extends Controller
     public function update(
         UpdateMenuItemRequest $request,
         MenuItem $menu_item
-    )
-    {
+    ) {
 
         $item =
             $this->menuItemService
-                ->update(
-                    $menu_item,
-                    $request->validated()
-                );
+            ->update(
+                $menu_item,
+                $request->validated()
+            );
 
 
         return new MenuItemResource(
             $item
         );
-
     }
 
 
     public function destroy(
         MenuItem $menu_item
-    )
-    {
+    ) {
         $this->menuItemService
             ->delete(
                 $menu_item
@@ -138,8 +149,7 @@ class MenuItemController extends Controller
 
         return response()->json([
             'message'
-                => $menu_item
+            => $menu_item
         ]);
-
     }
 }

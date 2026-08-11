@@ -7,6 +7,7 @@ use App\Http\Requests\Location\LocationRequest;
 use App\Http\Resources\LocationResource;
 use App\Models\Location;
 use App\Services\LocationService;
+use Illuminate\Http\Request;
 
 class LocationController extends Controller
 {
@@ -15,12 +16,32 @@ class LocationController extends Controller
         private LocationService $locationService
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $Locations = Location::get();
+        $perPage = min(
+            $request->integer('per_page', 10),
+            100
+        );
 
-        return LocationResource::collection($Locations);
+        $locations = Location::query()
+            ->when(
+                $request->search,
+                function ($query, $search) {
+                    $query->where(
+                        'name',
+                        'like',
+                        "%{$search}%"
+                    );
+                }
+            )
+            ->latest()
+            ->paginate($perPage);
+
+        return LocationResource::collection(
+            $locations
+        );
     }
+
 
     public function store(
         LocationRequest $request
@@ -67,10 +88,9 @@ class LocationController extends Controller
         $this->locationService->delete(
             $location
         );
-        
+
         return response()->json([
             'message' => 'Location deleted'
         ]);
     }
-
 }
