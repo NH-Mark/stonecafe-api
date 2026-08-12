@@ -107,6 +107,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('discounts', DiscountController::class);
     Route::apiResource('payment-methods', PaymentMethodController::class);
+
+    Route::get(
+        '/list-discounts',
+        [DiscountController::class,'listDiscounts']
+    );
     Route::patch(
         '/orders/{order}/payment-status',
         [OrderController::class, 'updatePaymentStatus']
