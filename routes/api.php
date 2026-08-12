@@ -112,6 +112,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/list-discounts',
         [DiscountController::class,'listDiscounts']
     );
+    Route::get(
+        '/list-payment-methods',
+        [PaymentMethodController::class,'listPaymentMethods']
+    );
     Route::patch(
         '/orders/{order}/payment-status',
         [OrderController::class, 'updatePaymentStatus']
