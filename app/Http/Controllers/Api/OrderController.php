@@ -23,22 +23,376 @@ class OrderController extends Controller
     {
         $perPage = $request->integer('per_page', 20);
 
-        $orders = Order::with([
-            'orderType',
-            'orderSource',
-            'customer',
-            'table',
-            'cashier',
-            'location',
-            'items.menuItem',
-            'items.discounts',
-            'payments.paymentMethod',
-            'payments.receivedBy',
-        ])
-            ->latest()
+        $query = Order::query()
+            ->with([
+                'orderType',
+                'orderSource',
+                'customer',
+                'table',
+                'cashier',
+                'location',
+                'items.menuItem',
+                'items.discounts',
+                'payments.paymentMethod',
+                'payments.receivedBy',
+            ]);
+
+        /*
+    |--------------------------------------------------------------------------
+    | Global Search
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('search')) {
+            $search = trim($request->string('search'));
+
+            $query->where(function ($q) use ($search) {
+                $q->where(
+                    'order_no',
+                    'like',
+                    "%{$search}%"
+                )
+
+                    ->orWhere(
+                        'status',
+                        'like',
+                        "%{$search}%"
+                    )
+
+                    ->orWhere(
+                        'payment_status',
+                        'like',
+                        "%{$search}%"
+                    )
+
+                    ->orWhereHas(
+                        'customer',
+                        function ($customerQuery) use ($search) {
+                            $customerQuery->where(
+                                'name',
+                                'like',
+                                "%{$search}%"
+                            );
+                        }
+                    );
+            });
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | DataTable Column Filters
+    |--------------------------------------------------------------------------
+    |
+    | Example:
+    |
+    | filters[0][id]    = payment_status
+    | filters[0][value] = unpaid
+    |
+    */
+
+        $filters = $request->input(
+            'filters',
+            []
+        );
+
+        /*
+     * If filters arrives as JSON string,
+     * decode it.
+     *
+     * This protects against:
+     *
+     * json_decode(): Argument #1 ($json)
+     * must be of type string, array given
+     */
+        if (is_string($filters)) {
+            $filters = json_decode(
+                $filters,
+                true
+            ) ?? [];
+        }
+
+        if (is_array($filters)) {
+            foreach ($filters as $filter) {
+                $column = $filter['id'] ?? null;
+                $value = $filter['value'] ?? null;
+
+                if (
+                    !$column ||
+                    $value === null ||
+                    $value === ''
+                ) {
+                    continue;
+                }
+
+                switch ($column) {
+
+                    /*
+                 * Payment Status
+                 */
+                    case 'payment_status':
+
+                        $query->where(
+                            'payment_status',
+                            $value
+                        );
+
+                        break;
+
+                    /*
+                 * Order Number
+                 */
+                    case 'order_no':
+
+                        $query->where(
+                            'order_no',
+                            'like',
+                            "%{$value}%"
+                        );
+
+                        break;
+
+                    /*
+                 * Customer Name
+                 */
+                    case 'customer_name':
+
+                        $query->whereHas(
+                            'customer',
+                            function ($q) use ($value) {
+                                $q->where(
+                                    'name',
+                                    'like',
+                                    "%{$value}%"
+                                );
+                            }
+                        );
+
+                        break;
+
+                    case 'total':
+
+                        $query->where(
+                            'total_amount',
+                            $value
+                        );
+
+
+                        break;
+
+                    /*
+                 * Status
+                 */
+                    case 'status':
+
+                        $query->where(
+                            'status',
+                            $value
+                        );
+
+                        break;
+
+                    /*
+                 * Order Type
+                 */
+                    case 'type':
+
+                       $query->whereHas(
+                            'orderType',
+                            function ($q) use ($value) {
+                                $q->where(
+                                    'name',
+                                    'like',
+                                    "%{$value}%"
+                                );
+                            }
+                        );
+
+                        break;
+
+                     case 'source':
+
+                       $query->whereHas(
+                            'orderSource',
+                            function ($q) use ($value) {
+                                $q->where(
+                                    'name',
+                                    'like',
+                                    "%{$value}%"
+                                );
+                            }
+                        );
+
+                        break;
+
+                    /*
+                 * Location
+                 */
+                    case 'location_id':
+
+                        $query->where(
+                            'location_id',
+                            $value
+                        );
+
+                        break;
+                }
+            }
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Top Orders Filters
+    |--------------------------------------------------------------------------
+    */
+
+        /*
+     * Date range preset
+     *
+     * today
+     * yesterday
+     * this_week
+     * this_month
+     * last_month
+     * custom
+     */
+
+        $range = $request->input('range');
+
+        switch ($range) {
+
+            /*
+         * Today
+         */
+            case 'today':
+
+                $query->whereDate(
+                    'ordered_at',
+                    now()->toDateString()
+                );
+
+                break;
+
+            /*
+         * Yesterday
+         */
+            case 'yesterday':
+
+                $query->whereDate(
+                    'ordered_at',
+                    now()
+                        ->subDay()
+                        ->toDateString()
+                );
+
+                break;
+
+            /*
+         * This Week
+         */
+            case 'this_week':
+
+                $query->whereBetween(
+                    'ordered_at',
+                    [
+                        now()->startOfWeek(),
+                        now()->endOfWeek(),
+                    ]
+                );
+
+                break;
+
+            /*
+         * This Month
+         */
+            case 'this_month':
+
+                $query->whereBetween(
+                    'ordered_at',
+                    [
+                        now()->startOfMonth(),
+                        now()->endOfMonth(),
+                    ]
+                );
+
+                break;
+
+            /*
+         * Last Month
+         */
+            case 'last_month':
+
+                $lastMonth = now()->subMonth();
+
+                $query->whereBetween(
+                    'ordered_at',
+                    [
+                        $lastMonth->copy()->startOfMonth(),
+                        $lastMonth->copy()->endOfMonth(),
+                    ]
+                );
+
+                break;
+
+            /*
+         * Custom
+         */
+            case 'custom':
+
+                if (
+                    $request->filled('start_date') &&
+                    $request->filled('end_date')
+                ) {
+                    $query->whereBetween(
+                        'ordered_at',
+                        [
+                            $request->start_date . ' 00:00:00',
+                            $request->end_date . ' 23:59:59',
+                        ]
+                    );
+                }
+
+                break;
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Location Filter
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('location_id')) {
+            $query->where(
+                'location_id',
+                $request->integer('location_id')
+            );
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Order Type Filter
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('order_type')) {
+            $query->where(
+                'order_type_id',
+                $request->integer('order_type')
+            );
+        }
+
+        /*
+    |--------------------------------------------------------------------------
+    | Pagination
+    |--------------------------------------------------------------------------
+    */
+
+        $orders = $query
+            ->latest('ordered_at')
             ->paginate($perPage);
 
-        return OrderResource::collection($orders);
+        return OrderResource::collection(
+            $orders
+        );
     }
 
 
@@ -824,83 +1178,83 @@ class OrderController extends Controller
             'message' => 'Order status updated'
         ]);
     }
-public function storePayment(
-    Request $request,
-    Order $order
-) {
-    $validated = $request->validate([
-        'payments' => [
-            'required',
-            'array',
-            'min:1',
-        ],
-
-        'payments.*.payment_method_id' => [
-            'required',
-            'exists:payment_methods,id',
-        ],
-
-        'payments.*.amount' => [
-            'required',
-            'numeric',
-            'min:0.01',
-        ],
-
-        'payments.*.reference' => [
-            'nullable',
-            'string',
-        ],
-    ]);
-
-    $result = DB::transaction(function () use (
-        $validated,
-        $order
+    public function storePayment(
+        Request $request,
+        Order $order
     ) {
+        $validated = $request->validate([
+            'payments' => [
+                'required',
+                'array',
+                'min:1',
+            ],
 
-        /*
+            'payments.*.payment_method_id' => [
+                'required',
+                'exists:payment_methods,id',
+            ],
+
+            'payments.*.amount' => [
+                'required',
+                'numeric',
+                'min:0.01',
+            ],
+
+            'payments.*.reference' => [
+                'nullable',
+                'string',
+            ],
+        ]);
+
+        $result = DB::transaction(function () use (
+            $validated,
+            $order
+        ) {
+
+            /*
         |--------------------------------------------------------------------------
         | Lock order
         |--------------------------------------------------------------------------
         */
 
-        $order = Order::query()
-            ->lockForUpdate()
-            ->findOrFail($order->id);
+            $order = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Get current paid amount
         |--------------------------------------------------------------------------
         */
 
-        $paidAmount = (float) $order
-            ->payments()
-            ->sum('amount');
+            $paidAmount = (float) $order
+                ->payments()
+                ->sum('amount');
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Get order total
         |--------------------------------------------------------------------------
         */
 
-        $orderTotal = (float) $order->total_amount;
+            $orderTotal = (float) $order->total_amount;
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Calculate remaining amount
         |--------------------------------------------------------------------------
         */
 
-        $remainingAmount = max(
-            $orderTotal - $paidAmount,
-            0
-        );
+            $remainingAmount = max(
+                $orderTotal - $paidAmount,
+                0
+            );
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Calculate total requested payment
         |--------------------------------------------------------------------------
@@ -914,277 +1268,274 @@ public function storePayment(
         |
         */
 
-        $paymentAmount = collect($validated['payments'])
-            ->sum(function ($payment) {
-                return (float) $payment['amount'];
-            });
+            $paymentAmount = collect($validated['payments'])
+                ->sum(function ($payment) {
+                    return (float) $payment['amount'];
+                });
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Do not allow payment above remaining balance
         |--------------------------------------------------------------------------
         */
 
-        if (
-            round($paymentAmount, 2) >
-            round($remainingAmount, 2)
-        ) {
+            if (
+                round($paymentAmount, 2) >
+                round($remainingAmount, 2)
+            ) {
 
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'payments' => [
-                    'Payment amount cannot exceed the remaining balance of '
-                        . number_format($remainingAmount, 2)
-                        . '.',
-                ],
-            ]);
-        }
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payments' => [
+                        'Payment amount cannot exceed the remaining balance of '
+                            . number_format($remainingAmount, 2)
+                            . '.',
+                    ],
+                ]);
+            }
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Create payments
         |--------------------------------------------------------------------------
         */
 
-        $payments = [];
+            $payments = [];
 
-        foreach ($validated['payments'] as $paymentData) {
+            foreach ($validated['payments'] as $paymentData) {
 
-            $payments[] = $order->payments()->create([
-                'payment_method_id' =>
+                $payments[] = $order->payments()->create([
+                    'payment_method_id' =>
                     $paymentData['payment_method_id'],
 
-                'amount' =>
+                    'amount' =>
                     $paymentData['amount'],
 
-                'reference' =>
+                    'reference' =>
                     $paymentData['reference'] ?? null,
 
-                'received_by' =>
+                    'received_by' =>
                     Auth::id(),
 
-                'paid_at' =>
+                    'paid_at' =>
                     now(),
-            ]);
-        }
+                ]);
+            }
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Calculate new paid amount
         |--------------------------------------------------------------------------
         */
 
-        $paidAmount = (float) $order
-            ->payments()
-            ->sum('amount');
+            $paidAmount = (float) $order
+                ->payments()
+                ->sum('amount');
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Calculate new remaining amount
         |--------------------------------------------------------------------------
         */
 
-        $remainingAmount = max(
-            $orderTotal - $paidAmount,
-            0
-        );
+            $remainingAmount = max(
+                $orderTotal - $paidAmount,
+                0
+            );
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Determine payment status
         |--------------------------------------------------------------------------
         */
 
-        if (
-            round($remainingAmount, 2) <= 0
-        ) {
+            if (
+                round($remainingAmount, 2) <= 0
+            ) {
 
-            $paymentStatus = 'paid';
+                $paymentStatus = 'paid';
+            } elseif (
+                $paidAmount > 0
+            ) {
 
-        } elseif (
-            $paidAmount > 0
-        ) {
+                $paymentStatus = 'partial';
+            } else {
 
-            $paymentStatus = 'partial';
-
-        } else {
-
-            $paymentStatus = 'unpaid';
-        }
+                $paymentStatus = 'unpaid';
+            }
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Update order payment status
         |--------------------------------------------------------------------------
         */
 
-        $order->update([
-            'payment_status' => $paymentStatus,
-        ]);
+            $order->update([
+                'payment_status' => $paymentStatus,
+            ]);
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Session closed?
         |--------------------------------------------------------------------------
         */
 
-        $sessionClosed = false;
+            $sessionClosed = false;
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Order fully paid
         |--------------------------------------------------------------------------
         */
 
-        if (
-            $paymentStatus === 'paid'
-        ) {
+            if (
+                $paymentStatus === 'paid'
+            ) {
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | Complete order
             |--------------------------------------------------------------------------
             */
 
-            $order->update([
-                'status' => Order::STATUS_COMPLETED,
-            ]);
+                $order->update([
+                    'status' => Order::STATUS_COMPLETED,
+                ]);
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | Create receipt print job
             |--------------------------------------------------------------------------
             */
 
-            PrintJob::create([
-                'order_id' =>
+                PrintJob::create([
+                    'order_id' =>
                     $order->id,
 
-                'dining_session_id' =>
+                    'dining_session_id' =>
                     null,
 
-                'payment_batch_id' =>
+                    'payment_batch_id' =>
                     null,
 
-                'printer' =>
+                    'printer' =>
                     'EPSON TM-T20III Receipt',
 
-                'type' =>
+                    'type' =>
                     'RECEIPT',
 
-                'status' =>
+                    'status' =>
                     'pending',
-            ]);
+                ]);
 
 
-            /*
+                /*
             |--------------------------------------------------------------------------
             | Check dining session
             |--------------------------------------------------------------------------
             */
 
-            $session = $order->diningSession;
+                $session = $order->diningSession;
 
-            if ($session) {
+                if ($session) {
 
-                /*
+                    /*
                 |--------------------------------------------------------------------------
                 | Check for other unpaid orders
                 |--------------------------------------------------------------------------
                 */
 
-                $hasUnpaidOrders = $session
-                    ->orders()
-                    ->where(
-                        'id',
-                        '!=',
-                        $order->id
-                    )
-                    ->where(
-                        'payment_status',
-                        '!=',
-                        'paid'
-                    )
-                    ->exists();
+                    $hasUnpaidOrders = $session
+                        ->orders()
+                        ->where(
+                            'id',
+                            '!=',
+                            $order->id
+                        )
+                        ->where(
+                            'payment_status',
+                            '!=',
+                            'paid'
+                        )
+                        ->exists();
 
 
-                /*
+                    /*
                 |--------------------------------------------------------------------------
                 | Last unpaid order
                 |--------------------------------------------------------------------------
                 */
 
-                if (!$hasUnpaidOrders) {
+                    if (!$hasUnpaidOrders) {
 
-                    $session->update([
-                        'status' => 'closed',
-                        'closed_at' => now(),
-                    ]);
+                        $session->update([
+                            'status' => 'closed',
+                            'closed_at' => now(),
+                        ]);
 
-                    $sessionClosed = true;
+                        $sessionClosed = true;
+                    }
                 }
             }
-        }
 
 
-        /*
+            /*
         |--------------------------------------------------------------------------
         | Return transaction result
         |--------------------------------------------------------------------------
         */
 
-        return [
-            'order_paid' =>
+            return [
+                'order_paid' =>
                 $paymentStatus === 'paid',
 
-            'payment_status' =>
+                'payment_status' =>
                 $paymentStatus,
 
-            'paid_amount' =>
+                'paid_amount' =>
                 round($paidAmount, 2),
 
-            'remaining_amount' =>
+                'remaining_amount' =>
                 round($remainingAmount, 2),
 
-            'session_closed' =>
+                'session_closed' =>
                 $sessionClosed,
-        ];
-    });
+            ];
+        });
 
 
-    /*
+        /*
     |--------------------------------------------------------------------------
     | Response
     |--------------------------------------------------------------------------
     */
 
-    return response()->json([
-        'message' =>
+        return response()->json([
+            'message' =>
             'Payment received',
 
-        'order_paid' =>
+            'order_paid' =>
             $result['order_paid'],
 
-        'payment_status' =>
+            'payment_status' =>
             $result['payment_status'],
 
-        'paid_amount' =>
+            'paid_amount' =>
             $result['paid_amount'],
 
-        'remaining_amount' =>
+            'remaining_amount' =>
             $result['remaining_amount'],
 
-        'session_closed' =>
+            'session_closed' =>
             $result['session_closed'],
-    ]);
-}
-
+        ]);
+    }
 }

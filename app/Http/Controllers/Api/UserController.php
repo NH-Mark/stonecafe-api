@@ -30,28 +30,42 @@ class UserController extends Controller
         $users = User::query()
             ->with([
                 'roles',
-                'permissions'
+                'permissions',
             ])
+
+            /*
+         * Sidebar role filter.
+         */
             ->when(
-                $request->role_id,
-                function ($query, $roleId) {
+                $request->filled('role_id'),
+                function ($query) use ($request) {
                     $query->whereHas(
                         'roles',
-                        function ($roleQuery) use ($roleId) {
+                        function ($roleQuery) use ($request) {
                             $roleQuery->where(
                                 'roles.id',
-                                $roleId
+                                $request->integer('role_id')
                             );
                         }
                     );
                 }
             )
+
+            /*
+         * Global search.
+         */
             ->when(
-                $request->search,
-                function ($query, $search) {
+                $request->filled('search'),
+                function ($query) use ($request) {
+                    $search = $request->search;
+
                     $query->where(function ($query) use ($search) {
                         $query
-                            ->where('name', 'like', "%{$search}%")
+                            ->where(
+                                'name',
+                                'like',
+                                "%{$search}%"
+                            )
                             ->orWhere(
                                 'email',
                                 'like',
@@ -59,7 +73,86 @@ class UserController extends Controller
                             );
                     });
                 }
-            )
+            );
+
+        /*
+     * DataTable column filters.
+     */
+        $filters = $request->input('filters', []);
+
+        foreach ($filters as $filter) {
+            $column = $filter['id'] ?? null;
+            $value = $filter['value'] ?? null;
+
+            if (
+                !$column ||
+                $value === null ||
+                $value === ''
+            ) {
+                continue;
+            }
+
+            switch ($column) {
+
+                case 'name':
+
+                    $users->where(
+                        'name',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'email':
+
+                    $users->where(
+                        'email',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'phone':
+
+                    $users->where(
+                        'phone',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'active':
+
+                    $users->where(
+                        'active',
+                        filter_var(
+                            $value,
+                            FILTER_VALIDATE_BOOLEAN
+                        )
+                    );
+
+                    break;
+
+                case 'role':
+
+                    $users->whereHas(
+                        'roles',
+                        function ($roleQuery) use ($value) {
+                            $roleQuery->where(
+                                'roles.id',
+                                $value
+                            );
+                        }
+                    );
+
+                    break;
+            }
+        }
+
+        $users = $users
             ->latest()
             ->paginate($perPage);
 

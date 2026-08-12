@@ -23,17 +23,71 @@ class LocationController extends Controller
             100
         );
 
-        $locations = Location::query()
-            ->when(
-                $request->search,
-                function ($query, $search) {
+        $query = Location::query();
+
+        /*
+     * Global search.
+     */
+        $query->when(
+            $request->filled('search'),
+            function ($query) use ($request) {
+                $search = $request->search;
+
+                $query->where(
+                    'name',
+                    'like',
+                    "%{$search}%"
+                );
+            }
+        );
+
+        /*
+     * DataTable column filters.
+     */
+        $filters = $request->input(
+            'filters',
+            []
+        );
+
+        foreach ($filters as $filter) {
+            $column = $filter['id'] ?? null;
+            $value = $filter['value'] ?? null;
+
+            if (
+                !$column ||
+                $value === null ||
+                $value === ''
+            ) {
+                continue;
+            }
+
+            switch ($column) {
+
+                case 'name':
+
                     $query->where(
                         'name',
                         'like',
-                        "%{$search}%"
+                        "%{$value}%"
                     );
-                }
-            )
+
+                    break;
+
+                case 'active':
+
+                    $query->where(
+                        'active',
+                        filter_var(
+                            $value,
+                            FILTER_VALIDATE_BOOLEAN
+                        )
+                    );
+
+                    break;
+            }
+        }
+
+        $locations = $query
             ->latest()
             ->paginate($perPage);
 

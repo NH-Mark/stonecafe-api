@@ -24,26 +24,133 @@ class ModifierController extends Controller
         );
 
         $modifiers = Modifier::query()
+            ->with('group')
+
+            /*
+        |--------------------------------------------------------------------------
+        | Modifier Group
+        |--------------------------------------------------------------------------
+        */
+
             ->when(
-                $request->modifier_group_id,
-                function ($query, $groupId) {
+                $request->filled('modifier_group_id'),
+                function ($query) use ($request) {
                     $query->where(
                         'modifier_group_id',
-                        $groupId
+                        $request->integer(
+                            'modifier_group_id'
+                        )
                     );
                 }
             )
+
+            /*
+        |--------------------------------------------------------------------------
+        | Global Search
+        |--------------------------------------------------------------------------
+        */
+
             ->when(
-                $request->search,
-                function ($query, $search) {
-                    $query->where(
-                        'name',
-                        'like',
-                        "%{$search}%"
-                    );
+                $request->filled('search'),
+                function ($query) use ($request) {
+                    $search =
+                        $request->input('search');
+
+                    $query->where(function ($q) use (
+                        $search
+                    ) {
+                        $q->where(
+                            'name',
+                            'like',
+                            "%{$search}%"
+                        )
+                            ->orWhere(
+                                'name_ar',
+                                'like',
+                                "%{$search}%"
+                            );
+                    });
                 }
             )
+
+            /*
+        |--------------------------------------------------------------------------
+        | Column Filters
+        |--------------------------------------------------------------------------
+        */
+
+            ->when(
+                $request->filled('filters'),
+                function ($query) use ($request) {
+                    $filters =
+                        $request->input(
+                            'filters',
+                            []
+                        );
+
+                    foreach ($filters as $filter) {
+                        $column =
+                            $filter['id'] ?? null;
+
+                        $value =
+                            $filter['value'] ?? null;
+
+                        if (
+                            !$column ||
+                            $value === null ||
+                            $value === ''
+                        ) {
+                            continue;
+                        }
+
+                        switch ($column) {
+                            case 'name':
+
+                                $query->where(
+                                    'name',
+                                    'like',
+                                    "%{$value}%"
+                                );
+
+                                break;
+
+                            case 'name_ar':
+
+                                $query->where(
+                                    'name_ar',
+                                    'like',
+                                    "%{$value}%"
+                                );
+
+                                break;
+
+                            case 'price':
+
+                                $query->where(
+                                    'price',
+                                    $value
+                                );
+
+                                break;
+
+                            case 'status':
+
+                                $query->where(
+                                    'active',
+                                    filter_var(
+                                        $value,
+                                        FILTER_VALIDATE_BOOLEAN
+                                    )
+                                );
+
+                                break;
+                        }
+                    }
+                }
+            )
+
             ->latest()
+
             ->paginate($perPage);
 
         return ModifierResource::collection(
