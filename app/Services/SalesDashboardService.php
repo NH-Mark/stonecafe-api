@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderDiscount;
 use App\Models\OrderItem;
+use App\Models\OrderItemDiscount;
 use App\Models\OrderItemModifier;
 use App\Models\Refund;
 use Carbon\Carbon;
@@ -21,6 +23,21 @@ class SalesDashboardService
 
         $previousFrom = $from->copy()->subDays($previousDays);
         $previousTo = $to->copy()->subDays($previousDays);
+
+        $currentDiscounts =
+            $this->discountTotal(
+                $request,
+                $from,
+                $to
+            );
+
+
+        $previousDiscounts =
+            $this->discountTotal(
+                $request,
+                $previousFrom,
+                $previousTo
+            );
 
         $currentOrders = Order::query();
         $previousOrders = Order::query();
@@ -77,15 +94,19 @@ class SalesDashboardService
 
                 $this->card(
                     'Net Sales',
+
                     $currentOrders->sum('total_amount') -
-                        $currentOrders->sum('discount_amount'),
+                        $currentDiscounts,
+
                     $this->percentage(
+
                         $previousOrders->sum('total_amount') -
-                            $previousOrders->sum('discount_amount'),
+                            $previousDiscounts,
 
                         $currentOrders->sum('total_amount') -
-                            $currentOrders->sum('discount_amount')
+                            $currentDiscounts
                     ),
+
                     'net',
                     true
                 ),
@@ -113,11 +134,14 @@ class SalesDashboardService
 
                 $this->card(
                     'Discounts',
-                    $currentOrders->sum('discount_amount'),
+
+                    $currentDiscounts,
+
                     $this->percentage(
-                        $previousOrders->sum('discount_amount'),
-                        $currentOrders->sum('discount_amount')
+                        $previousDiscounts,
+                        $currentDiscounts
                     ),
+
                     'discount',
                     true
                 ),
@@ -439,54 +463,54 @@ class SalesDashboardService
             ->toArray();
     }
 
-  private function topSellingModifiers(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
+    private function topSellingModifiers(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
 
-    $query = OrderItemModifier::query()
+        $query = OrderItemModifier::query()
 
-        ->join(
-            'order_items',
-            'order_items.id',
-            '=',
-            'order_item_modifiers.order_item_id'
-        )
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_modifiers.order_item_id'
+            )
 
-        ->join(
-            'orders',
-            'orders.id',
-            '=',
-            'order_items.order_id'
-        )
+            ->join(
+                'orders',
+                'orders.id',
+                '=',
+                'order_items.order_id'
+            )
 
-        ->join(
-            'menu_items',
-            'menu_items.id',
-            '=',
-            'order_items.menu_item_id'
-        )
+            ->join(
+                'menu_items',
+                'menu_items.id',
+                '=',
+                'order_items.menu_item_id'
+            )
 
-        ->join(
-            'modifiers',
-            'modifiers.id',
-            '=',
-            'order_item_modifiers.modifier_id'
+            ->join(
+                'modifiers',
+                'modifiers.id',
+                '=',
+                'order_item_modifiers.modifier_id'
+            );
+
+
+        $this->applyFilters(
+            $query,
+            $request,
+            $from,
+            $to
         );
 
 
-    $this->applyFilters(
-        $query,
-        $request,
-        $from,
-        $to
-    );
+        return $query
 
-
-    return $query
-
-        ->selectRaw("
+            ->selectRaw("
             menu_items.name as menu_item,
 
             modifiers.name as name,
@@ -502,53 +526,52 @@ class SalesDashboardService
         ")
 
 
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'modifiers.id',
-            'modifiers.name'
-        )
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'modifiers.id',
+                'modifiers.name'
+            )
 
 
-        ->orderByDesc(
-            'qty'
-        )
+            ->orderByDesc(
+                'qty'
+            )
 
-        ->limit(5)
+            ->limit(5)
 
-        ->get()
+            ->get()
 
-        ->map(function ($item) {
+            ->map(function ($item) {
 
-            // $profit = $item->total_amount - $item->total_cogs;
+                // $profit = $item->total_amount - $item->total_cogs;
 
-            // $profitability = $item->total_amount > 0
-            //     ? ($profit / $item->total_amount) * 100
-            //     : 0;
+                // $profitability = $item->total_amount > 0
+                //     ? ($profit / $item->total_amount) * 100
+                //     : 0;
 
 
-            return [
+                return [
 
-                'menu_item' => $item->menu_item,
+                    'menu_item' => $item->menu_item,
 
-                'name' => $item->name,
+                    'name' => $item->name,
 
-                'qty' => (int)$item->qty,
+                    'qty' => (int)$item->qty,
 
-                'sales' => (float)$item->total_amount,
+                    'sales' => (float)$item->total_amount,
 
-                // 'total_cogs' => (float)$item->total_cogs,
+                    // 'total_cogs' => (float)$item->total_cogs,
 
-                // 'profitability' => [
-                //     'percentage' => round($profitability, 2),
-                //     'amount' => round($profit, 2)
-                // ]
-            ];
+                    // 'profitability' => [
+                    //     'percentage' => round($profitability, 2),
+                    //     'amount' => round($profit, 2)
+                    // ]
+                ];
+            })
 
-        })
-
-        ->toArray();
-}
+            ->toArray();
+    }
 
     private function hourlyBreakdown(
         Request $request,
@@ -598,5 +621,152 @@ class SalesDashboardService
             })
             ->values()
             ->toArray();
+    }
+
+    private function discountTotal(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): float {
+
+        /*
+    |--------------------------------------------------------------------------
+    | Order Discounts
+    |--------------------------------------------------------------------------
+    */
+
+        $orderDiscounts = OrderDiscount::query()
+            ->join(
+                'orders',
+                'orders.id',
+                '=',
+                'order_discounts.order_id'
+            )
+            ->whereBetween(
+                'orders.ordered_at',
+                [$from, $to]
+            );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Item Discounts
+    |--------------------------------------------------------------------------
+    */
+
+        $itemDiscounts = OrderItemDiscount::query()
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_discounts.order_item_id'
+            )
+            ->join(
+                'orders',
+                'orders.id',
+                '=',
+                'order_items.order_id'
+            )
+            ->whereBetween(
+                'orders.ordered_at',
+                [$from, $to]
+            );
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Filters
+    |--------------------------------------------------------------------------
+    */
+
+        if ($request->filled('location_id')) {
+
+            $orderDiscounts->where(
+                'orders.location_id',
+                $request->location_id
+            );
+
+            $itemDiscounts->where(
+                'orders.location_id',
+                $request->location_id
+            );
+        }
+
+
+        if ($request->filled('order_type')) {
+
+            $orderDiscounts->where(
+                'orders.order_type_id',
+                $request->order_type
+            );
+
+            $itemDiscounts->where(
+                'orders.order_type_id',
+                $request->order_type
+            );
+        }
+
+
+        if ($request->filled('order_source_id')) {
+
+            $orderDiscounts->where(
+                'orders.order_source_id',
+                $request->order_source_id
+            );
+
+            $itemDiscounts->where(
+                'orders.order_source_id',
+                $request->order_source_id
+            );
+        }
+
+
+        if ($request->filled('payment_method_id')) {
+
+            $orderDiscounts->where(
+                'orders.payment_method_id',
+                $request->payment_method_id
+            );
+
+            $itemDiscounts->where(
+                'orders.payment_method_id',
+                $request->payment_method_id
+            );
+        }
+
+
+        if ($request->filled('status')) {
+
+            $orderDiscounts->where(
+                'orders.status',
+                $request->status
+            );
+
+            $itemDiscounts->where(
+                'orders.status',
+                $request->status
+            );
+        }
+
+
+        /*
+    |--------------------------------------------------------------------------
+    | Calculate
+    |--------------------------------------------------------------------------
+    */
+
+        $orderDiscountAmount =
+            (float) $orderDiscounts->sum(
+                'order_discounts.amount'
+            );
+
+
+        $itemDiscountAmount =
+            (float) $itemDiscounts->sum(
+                'order_item_discounts.amount'
+            );
+
+
+        return $orderDiscountAmount + $itemDiscountAmount;
     }
 }
