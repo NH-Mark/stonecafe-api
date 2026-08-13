@@ -208,8 +208,8 @@ class SalesDashboardService
             ],
 
             'this_week' => [
-                now()->startOfWeek(),
-                now()->endOfWeek(),
+                now()->startOfWeek(Carbon::SUNDAY),
+                now()->endOfWeek(Carbon::MONDAY),
             ],
 
             'this_month' => [

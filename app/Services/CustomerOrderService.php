@@ -8,46 +8,53 @@ use App\Models\Customer;
 use App\Models\Location;
 use App\Models\OrderSource;
 use App\Models\OrderType;
-use App\Models\PaymentMethod;
 use App\Models\PrintJob;
 use Illuminate\Support\Facades\DB;
 
-
 class CustomerOrderService
 {
-
-
     public function create(array $data)
     {
-
         return DB::transaction(function () use ($data) {
-
 
             /*
             |--------------------------------------------------------------------------
             | Customer
             |--------------------------------------------------------------------------
+            |
+            | Customer information is optional.
+            |
+            | If phone is provided, we update/create the customer.
+            | If no phone is provided, customer_id remains null.
+            |
             */
 
+            $customer = null;
 
-            $customer = Customer::updateOrCreate(
+            $customerPhone =
+                $data['customer']['phone'] ?? null;
 
-                [
-                    'phone'=>$data['customer']['phone']
-                ],
+            $customerName =
+                $data['customer']['name'] ?? null;
 
-                [
-                    'name'=>$data['customer']['name'],
+            if ($customerPhone) {
 
-                    'email'=>$data['customer']['email'] ?? null,
+                $customer = Customer::updateOrCreate(
+                    [
+                        'phone' => $customerPhone,
+                    ],
+                    [
+                        'name' =>
+                            $customerName ?? '',
 
-                    'address'=>$data['customer']['address'] ?? null
-                ]
+                        'email' =>
+                            $data['customer']['email'] ?? null,
 
-            );
-
-
-
+                        'address' =>
+                            $data['customer']['address'] ?? null,
+                    ]
+                );
+            }
 
 
             /*
@@ -56,51 +63,77 @@ class CustomerOrderService
             |--------------------------------------------------------------------------
             */
 
-
             $lastSequence =
                 Order::lockForUpdate()
-                ->max('order_sequence');
-
+                    ->max('order_sequence');
 
             $sequence =
                 $lastSequence
-                ? $lastSequence + 1
-                : 1001;
-
-            /*
-            |--------------------------------------------------------------------------
-            | Payment Method
-            |--------------------------------------------------------------------------
-            */
-
-
-            $paymentMethod =
-                PaymentMethod::where(
-                    'id',
-                    $data['payment']['payment_method_id']
-                )->firstOrFail();
-
-
-
-            $location = Location::firstOrFail();
-
+                    ? $lastSequence + 1
+                    : 1001;
 
 
             /*
             |--------------------------------------------------------------------------
-            | Payment Status
+            | Location
             |--------------------------------------------------------------------------
             */
 
-
-            $paymentStatus =
-                $paymentMethod->code === 'SKIPCASH'
-                ? 'unpaid'
-                : 'unpaid';
+            $location =
+                Location::firstOrFail();
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Order Type
+            |--------------------------------------------------------------------------
+            */
+
+            $orderTypeCode =
+                $data['order_type'] ?? 'takeaway';
+
+            $orderTypeId =
+                $this->getOrderTypeId(
+                    $orderTypeCode
+                );
+
+            if (!$orderTypeId) {
+
+                throw new \RuntimeException(
+                    "Invalid order type: {$orderTypeCode}"
+                );
+            }
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Table
+            |--------------------------------------------------------------------------
+            |
+            | table_id is ONLY used for dine_in.
+            |
+            | Examples:
+            |
+            | dine_in + table_id = 5
+            | => save table_id = 5
+            |
+            | dine_in + no table_id
+            | => save table_id = null
+            |
+            | takeaway + table_id = 5
+            | => ignore table_id and save null
+            |
+            */
+
+            $tableId = null;
+
+            if (
+                $orderTypeCode === 'dine_in' &&
+                !empty($data['table_id'])
+            ) {
+                $tableId =
+                    (int) $data['table_id'];
+            }
 
 
             /*
@@ -109,82 +142,91 @@ class CustomerOrderService
             |--------------------------------------------------------------------------
             */
 
+            $orderData = [
 
-            $order =
-            Order::create([
+                'order_no' =>
+                    'ORD-' . $sequence,
 
-
-                'order_no'=>
-                    'ORD-'.$sequence,
-
-
-                'order_sequence'=>
+                'order_sequence' =>
                     $sequence,
 
+                'customer_id' =>
+                    $customer?->id,
 
-                'customer_id'=>
-                    $customer->id,
-
-
-                'location_id'=>
+                'location_id' =>
                     $location->id,
 
-
-                'order_source_id'=>
+                'order_source_id' =>
                     $this->getOrderSourceId('qr'),
 
+                'order_type_id' =>
+                    $orderTypeId,
 
+                /*
+                | Customer QR orders are immediately confirmed.
+                */
 
-                'order_type_id'=>
-                    $this->getOrderTypeId(
-                        $data['order_type']
-                    ),
+                'status' =>
+                    Order::STATUS_PENDING,
 
+                'kitchen_status' =>
+                    Order::KITCHEN_STATUS_PENDING,
 
+                'payment_status' =>
+                    'unpaid',
 
-                'status'=>
-                    $paymentMethod->code === 'SKIPCASH'
-                    ? Order::STATUS_PENDING
-                    : Order::STATUS_CONFIRMED,
-
-                'kitchen_status'=>Order::KITCHEN_STATUS_PENDING,
-
-
-
-                'payment_status'=>
-                    $paymentStatus,
-
-
-
-                'subtotal'=>
+                'subtotal' =>
                     $data['subtotal'],
 
+                'tax_amount' =>
+                    $data['tax_amount']
+                    ?? $data['vat']
+                    ?? 0,
 
-
-                'tax_amount'=>
-                    $data['vat'] ?? 0,
-
-
-
-                'total_amount'=>
+                'total_amount' =>
                     $data['total_amount'],
 
-
-                'notes'=>
+                'notes' =>
                     $data['notes'] ?? null,
 
-
-                'ordered_at'=>now()
-
-
-            ]);
+                'ordered_at' =>
+                    now(),
+            ];
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Add Table ID
+            |--------------------------------------------------------------------------
+            |
+            | Only add the table when this is dine_in.
+            |
+            */
+
+            if (
+                $orderTypeCode === 'dine_in'
+            ) {
+                $orderData['table_id'] =
+                    $tableId;
+            } else {
+                /*
+                | Takeaway must never have a table.
+                */
+
+                $orderData['table_id'] = null;
+            }
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | Create Order
+            |--------------------------------------------------------------------------
+            */
 
-
-
+            $order =
+                Order::create(
+                    $orderData
+                );
 
 
             /*
@@ -193,138 +235,107 @@ class CustomerOrderService
             |--------------------------------------------------------------------------
             */
 
+            foreach (
+                $data['items']
+                as $row
+            ) {
 
-            foreach($data['items'] as $row){
+                $quantity =
+                    (int) (
+                        $row['qty'] ?? 1
+                    );
 
+                $unitPrice =
+                    (float) (
+                        $row['price'] ?? 0
+                    );
 
                 $item =
-                $order->items()->create([
+                    $order->items()->create([
+
+                        'menu_item_id' =>
+                            $row['product_id'],
+
+                        'quantity' =>
+                            $quantity,
+
+                        'unit_price' =>
+                            $unitPrice,
+
+                        'total_price' =>
+                            $unitPrice *
+                            $quantity,
+                    ]);
 
 
-                    'menu_item_id'=>
-                        $row['product_id'],
+                /*
+                |--------------------------------------------------------------------------
+                | Modifiers
+                |--------------------------------------------------------------------------
+                */
 
-
-                    'quantity'=>
-                        $row['qty'],
-
-
-                    'unit_price'=>
-                        $row['price'],
-
-
-                    'total_price'=>
-                        $row['price']
-                        *
-                        $row['qty']
-
-
-                ]);
-
-
-
-
-
-                foreach ($row['modifiers'] ?? [] as $modifier) {
-
+                foreach (
+                    $row['modifiers'] ?? []
+                    as $modifier
+                ) {
 
                     $item->modifiers()->create([
 
-                        'modifier_id'=>
+                        'modifier_id' =>
                             $modifier['id'],
 
-                        'quantity'=>
-                            $modifier['qty'] ?? 1,
+                        'quantity' =>
+                            $modifier['qty']
+                            ?? 1,
 
-                        'price'=>
-                            $modifier['price'] ?? 0,
-
+                        'price' =>
+                            $modifier['price']
+                            ?? 0,
                     ]);
-
                 }
-
-
             }
-
-
-
-
-
-
-
 
 
             /*
             |--------------------------------------------------------------------------
-            | Payment Record
+            | Print Job
             |--------------------------------------------------------------------------
+            |
+            | No payment is required before sending the order.
+            |
             */
 
+            // PrintJob::create([
 
-            $order->payments()->create([
+            //     'order_id' =>
+            //         $order->id,
 
+            //     'printer' =>
+            //         'EPSON TM-T20III Receipt',
 
-                'payment_method_id'=>
-                    $paymentMethod->id,
-
-
-                'amount'=>
-                    $data['total_amount'],
-
-
-                'paid_at'=>null
-
-
-            ]);
-
-
-
-
-
-
-
+            //     'status' =>
+            //         'pending',
+            // ]);
 
 
             /*
             |--------------------------------------------------------------------------
-            | Print Only For Non SkipCash
+            | Kitchen Event
             |--------------------------------------------------------------------------
             */
 
-
-            if($paymentMethod->code !== 'SKIPCASH')
-            {
-
-
-                PrintJob::create([
-
-
-                    'order_id'=>
-                        $order->id,
+            // event(
+            //     new KitchenOrderCreated(
+            //         $order
+            //     )
+            // );
 
 
-                    'printer'=>
-                        'EPSON TM-T20III Receipt',
-
-
-                    'status'=>
-                        'pending'
-
-
-                ]);
-
-                event(
-                    new KitchenOrderCreated($order)
-                );
-
-
-            }
-
-
-
-
-
-
+            /*
+            |--------------------------------------------------------------------------
+            | Return Order
+            |--------------------------------------------------------------------------
+            */
 
             return $order->load([
 
@@ -334,47 +345,49 @@ class CustomerOrderService
 
                 'customer',
 
-                'payments.paymentMethod'
-
             ]);
-
-
-
         });
-
-
     }
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Order Type
+    |--------------------------------------------------------------------------
+    */
 
-
-
-    private function getOrderTypeId(string $type)
-    {
-
+    private function getOrderTypeId(
+        string $type
+    ) {
         return OrderType::where(
             'code',
             $type
         )
-        ->where('status',true)
-        ->value('id');
-
+            ->where(
+                'status',
+                true
+            )
+            ->value('id');
     }
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | Order Source
+    |--------------------------------------------------------------------------
+    */
 
-
-    private function getOrderSourceId(string $type)
-    {
-
+    private function getOrderSourceId(
+        string $type
+    ) {
         return OrderSource::where(
             'code',
             $type
         )
-        ->where('status',true)
-        ->value('id');
-
+            ->where(
+                'status',
+                true
+            )
+            ->value('id');
     }
-
-
 }

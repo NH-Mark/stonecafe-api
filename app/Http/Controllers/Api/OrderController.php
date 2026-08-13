@@ -11,6 +11,7 @@ use App\Models\DiningSession;
 use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\PrintJob;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -294,8 +295,8 @@ class OrderController extends Controller
                 $query->whereBetween(
                     'ordered_at',
                     [
-                        now()->startOfWeek(),
-                        now()->endOfWeek(),
+                        now()->startOfWeek(Carbon::SUNDAY),
+                        now()->endOfWeek(Carbon::MONDAY),
                     ]
                 );
 

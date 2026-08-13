@@ -15,59 +15,88 @@ class CustomerOrderController extends Controller
 
     public function __construct(
         private CustomerOrderService $service
-    ){}
+    ) {}
 
 
 
     public function store(Request $request)
     {
-
-
         $validated = $request->validate([
 
+            'table_id' => [
+                'nullable',
+                'integer',
+                'exists:restaurant_tables,id',
+            ],
 
-            'customer.name'=>'required',
+            'customer' => [
+                'nullable',
+                'array',
+            ],
 
-            'customer.phone'=>'required',
+            'customer.name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
+            'customer.phone' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
 
-            'items'=>'required|array',
+            'items' => [
+                'required',
+                'array',
+                'min:1',
+            ],
 
+            'subtotal' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
 
-            'payment'=>'required',
+            'tax_amount' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
 
+            'total_amount' => [
+                'required',
+                'numeric',
+                'min:0.01',
+            ],
 
-            'subtotal'=>'required|numeric',
+            'notes' => [
+                'nullable',
+                'string',
+            ],
 
-            'tax_amount'=>'nullable|numeric',
+            'order_type' => [
+                'required',
+                'string',
+            ],
 
-            'total_amount'=>'required|numeric',
-
-
-            'notes'=>'nullable|string',
-            'order_type'=>'required|string'
         ]);
-
-
 
         $order =
             $this->service->create(
                 $validated
             );
 
-
-
         return response()->json([
 
-            'success'=>true,
+            'success' => true,
 
-            'message'=>'Order placed successfully',
+            'message' =>
+            'Order placed successfully',
 
-            'data'=>$order
+            'data' => $order,
 
-        ],201);
-
-
+        ], 201);
     }
 
     public function show($id)
@@ -82,6 +111,4 @@ class CustomerOrderController extends Controller
             'total_amount' => $order->total_amount,
         ]);
     }
-
-
 }
