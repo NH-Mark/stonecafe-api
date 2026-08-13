@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\Api\KitchenController;
+use App\Http\Controllers\Api\OrderSourceController;
 use App\Http\Controllers\Api\RestaurantTableController;
 use App\Http\Controllers\Api\TablePaymentController;
 use App\Http\Controllers\MenuItemModifierGroupController;
@@ -107,7 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('orders', OrderController::class);
     Route::apiResource('discounts', DiscountController::class);
     Route::apiResource('payment-methods', PaymentMethodController::class);
-
+    Route::apiResource('order-sources', OrderSourceController::class);
     Route::get(
         '/list-discounts',
         [DiscountController::class,'listDiscounts']
@@ -115,6 +116,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get(
         '/list-payment-methods',
         [PaymentMethodController::class,'listPaymentMethods']
+    );
+     Route::get(
+        '/list-order-sources',
+        [OrderSourceController::class,'listOrderSources']
     );
     Route::patch(
         '/orders/{order}/payment-status',
