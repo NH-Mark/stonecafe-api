@@ -45,6 +45,12 @@ class TablePaymentController extends Controller
                 'min:1',
             ],
 
+            'orderSourceId' => [
+                'nullable',
+                'integer',
+                'exists:order_sources,id',
+            ],
+
             'orderIds.*' => [
                 'required',
                 'integer',
@@ -97,6 +103,12 @@ class TablePaymentController extends Controller
             ->unique()
             ->values();
 
+        $orderSourceId =
+        isset($validated['orderSourceId']) &&
+        $validated['orderSourceId'] !== null
+            ? (int) $validated['orderSourceId']
+            : null;
+
         /*
         |--------------------------------------------------------------------------
         | Normalize payments
@@ -147,6 +159,7 @@ class TablePaymentController extends Controller
         return DB::transaction(function () use (
             $validated,
             $orderIds,
+            $orderSourceId,
             $paymentsInput,
             $requestedPaymentTotal
         ) {
@@ -300,6 +313,16 @@ class TablePaymentController extends Controller
                             2
                         ),
                 ], 422);
+            }
+
+            if ($orderSourceId !== null) {
+                $orders->each(function ($order) use ($orderSourceId) {
+
+                    $order->update([
+                        'order_source_id' =>
+                            $orderSourceId,
+                    ]);
+                });
             }
 
             /*

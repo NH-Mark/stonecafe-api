@@ -1183,6 +1183,7 @@ class OrderController extends Controller
         Order $order
     ) {
         $validated = $request->validate([
+            'order_source_id'=>'nullable',
             'payments' => [
                 'required',
                 'array',
@@ -1377,6 +1378,7 @@ class OrderController extends Controller
 
             $order->update([
                 'payment_status' => $paymentStatus,
+                'order_source_id'=>$validated['order_source_id']
             ]);
 
 
@@ -1407,6 +1409,7 @@ class OrderController extends Controller
 
                 $order->update([
                     'status' => Order::STATUS_COMPLETED,
+                    'order_source_id'=>$validated['order_source_id']
                 ]);
 
 
