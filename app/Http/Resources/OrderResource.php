@@ -17,16 +17,13 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'order_no' => $this->order_no,
-
             'type' => $this->orderType?->name,
             'order_type_code' => $this->orderType?->code,
             'source' => $this->orderSource?->name,
-
             'customer' => $this->customer?->name,
             'table' => $this->table?->name,
             'cashier' => $this->cashier?->name,
             'location' => $this->location?->name,
-
             'status' => $this->status,
             'payment_status' => $this->payment_status,
             'kitchen_status' => $this->kitchen_status,
@@ -35,11 +32,8 @@ class OrderResource extends JsonResource
             'tax_amount' => $this->tax_amount,
             'service_charge' => $this->service_charge,
             'total' => $this->total_amount,
-
             'notes' => $this->notes,
-
             'ordered_at' => optional($this->ordered_at)->format('Y-m-d H:i:s'),
-
             'items' => $this->items->map(function ($item) {
                 return [
                     'id' => $item->id,

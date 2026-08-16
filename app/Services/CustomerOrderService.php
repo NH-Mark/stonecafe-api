@@ -161,6 +161,7 @@ class CustomerOrderService
 
                 'order_type_id' =>
                     $orderTypeId,
+                'number_plate'=>$data['number_plate'],
 
                 /*
                 | Customer QR orders are immediately confirmed.

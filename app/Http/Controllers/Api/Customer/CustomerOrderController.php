@@ -79,6 +79,7 @@ class CustomerOrderController extends Controller
                 'required',
                 'string',
             ],
+            'number_plate'=>['nullable'],
 
         ]);
 

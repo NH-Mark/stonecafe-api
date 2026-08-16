@@ -46,6 +46,7 @@ class Order extends Model
         'kitchen_status',
         'completed_at',
         'dining_session_id',
+        'number_plate'
     ];
 
     protected $casts = [
