@@ -33,6 +33,8 @@ class OrderResource extends JsonResource
             'service_charge' => $this->service_charge,
             'total' => $this->total_amount,
             'notes' => $this->notes,
+            'number_plate' => $this->number_plate,
+            'order_source_id'=>$this->order_source_id,
             'ordered_at' => optional($this->ordered_at)->format('Y-m-d H:i:s'),
             'items' => $this->items->map(function ($item) {
                 return [

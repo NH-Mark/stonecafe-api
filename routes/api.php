@@ -133,6 +133,12 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders',
         [OrderController::class, 'store']
     );
+
+    Route::get(
+        '/today-orders',
+        [OrderController::class, 'getTodayOrders']
+    );
+
     Route::get(
         '/kitchen/orders',
         [KitchenController::class,'index']

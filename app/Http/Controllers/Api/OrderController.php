@@ -396,6 +396,27 @@ class OrderController extends Controller
         );
     }
 
+    public function getTodayOrders(Request $request)
+    {
+        $orders = Order::query()
+            ->with([
+                'orderType',
+                'orderSource',
+                'customer',
+                'table',
+                'cashier',
+                'location',
+                'items.menuItem',
+                'items.discounts',
+                'payments.paymentMethod',
+                'payments.receivedBy',
+            ])
+            ->whereDate('ordered_at', now())
+            ->latest('ordered_at')
+            ->get();
+
+        return OrderResource::collection($orders);
+    }
 
 
 
@@ -1106,7 +1127,7 @@ class OrderController extends Controller
 
     //     return new OrderResource($order);
     // }
-
+    
     public function show(Order $order)
     {
         $order->load([
