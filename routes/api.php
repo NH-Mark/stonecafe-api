@@ -167,13 +167,18 @@ Route::middleware('auth:sanctum')->group(function () {
         [TablePaymentController::class, 'store']
     );
 
-    Route::post(
-        '/orders/{order}/order-status',
-        [OrderController::class, 'updateOrderStatus']
-    );
+    // Route::post(
+    //     '/orders/{order}/order-status',
+    //     [OrderController::class, 'updateOrderStatus']
+    // );
     Route::patch(
         '/pos/dining-sessions/{diningSession}/transfer-table',
         [DiningSessionController::class, 'transferTable']
+    );
+
+    Route::patch(
+        '/orders/{order}/status',
+        [OrderController::class, 'updateStatus']
     );
   
 

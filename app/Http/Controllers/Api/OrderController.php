@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
@@ -1127,7 +1128,7 @@ class OrderController extends Controller
 
     //     return new OrderResource($order);
     // }
-    
+
     public function show(Order $order)
     {
         $order->load([
@@ -1561,6 +1562,35 @@ class OrderController extends Controller
 
             'session_closed' =>
             $result['session_closed'],
+        ]);
+    }
+
+    public function updateStatus(
+        Request $request,
+        Order $order
+    ) {
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                Rule::in([
+                    'confirmed',
+                    'cancelled',
+                ]),
+            ],
+        ]);
+
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending orders can be updated.',
+            ], 422);
+        }
+
+        $order->status = $validated['status'];
+        $order->save();
+
+        return response()->json([
+            'message' => 'Order status updated successfully.',
+            'order' => $order->fresh(),
         ]);
     }
 }
