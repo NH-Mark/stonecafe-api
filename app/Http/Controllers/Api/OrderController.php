@@ -1401,7 +1401,7 @@ class OrderController extends Controller
 
             $order->update([
                 'payment_status' => $paymentStatus,
-                'order_source_id'=>$validated['order_source_id']
+                'order_source_id'=>$validated['order_source_id']??1
             ]);
 
 
@@ -1432,7 +1432,7 @@ class OrderController extends Controller
 
                 $order->update([
                     'status' => Order::STATUS_COMPLETED,
-                    'order_source_id'=>$validated['order_source_id']
+                    'order_source_id'=>$validated['order_source_id']??1
                 ]);
 
 
@@ -1593,7 +1593,7 @@ class OrderController extends Controller
             'order' => $order->fresh(),
         ]);
     }
-    
+
     public function print(Order $order)
     {
         if (
