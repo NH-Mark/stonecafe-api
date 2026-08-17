@@ -181,6 +181,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/status',
         [OrderController::class, 'updateStatus']
     );
+    Route::post(
+        '/orders/{order}/print',
+        [OrderController::class, 'print']
+    );
 
     Route::get(
         '/sales/email-settings',

@@ -1593,4 +1593,34 @@ class OrderController extends Controller
             'order' => $order->fresh(),
         ]);
     }
+    
+    public function print(Order $order)
+    {
+        if (
+            strtolower($order->status) !== 'completed' ||
+            strtolower($order->payment_status) !== 'paid'
+        ) {
+            return response()->json([
+                'message' => 'Order must be completed and fully paid before printing.',
+            ], 422);
+        }
+
+        PrintJob::create([
+            'order_id' => $order->id,
+
+            'dining_session_id' => null,
+
+            'payment_batch_id' => null,
+
+            'printer' => 'EPSON TM-T20III Receipt',
+
+            'type' => 'RECEIPT',
+
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Order sent to printer successfully.',
+        ]);
+    }
 }
