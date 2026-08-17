@@ -462,58 +462,57 @@ class SalesDashboardService
 
             ->toArray();
     }
-
     private function topSellingModifiers(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
 
-        $query = OrderItemModifier::query()
+    $query = OrderItemModifier::query()
 
-            ->join(
-                'order_items',
-                'order_items.id',
-                '=',
-                'order_item_modifiers.order_item_id'
-            )
+        ->join(
+            'order_items',
+            'order_items.id',
+            '=',
+            'order_item_modifiers.order_item_id'
+        )
 
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
+        ->join(
+            'orders',
+            'orders.id',
+            '=',
+            'order_items.order_id'
+        )
 
-            ->join(
-                'menu_items',
-                'menu_items.id',
-                '=',
-                'order_items.menu_item_id'
-            )
+        ->join(
+            'menu_items',
+            'menu_items.id',
+            '=',
+            'order_items.menu_item_id'
+        )
 
-            ->join(
-                'modifiers',
-                'modifiers.id',
-                '=',
-                'order_item_modifiers.modifier_id'
-            );
-
-
-        $this->applyFilters(
-            $query,
-            $request,
-            $from,
-            $to
+        ->join(
+            'modifiers',
+            'modifiers.id',
+            '=',
+            'order_item_modifiers.modifier_id'
         );
 
+    $this->applyFilters(
+        $query,
+        $request,
+        $from,
+        $to
+    );
 
-        return $query
+    return $query
 
-            ->selectRaw("
+        ->selectRaw("
             menu_items.name as menu_item,
 
             modifiers.name as name,
+
+            modifiers.price as modifier_price,
 
             SUM(
                 order_item_modifiers.quantity
@@ -521,57 +520,159 @@ class SalesDashboardService
 
             SUM(
                 order_item_modifiers.quantity *
-                order_item_modifiers.price
+                modifiers.price
             ) as total_amount
         ")
 
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'modifiers.id',
+            'modifiers.name',
+            'modifiers.price'
+        )
 
-            ->groupBy(
-                'menu_items.id',
-                'menu_items.name',
-                'modifiers.id',
-                'modifiers.name'
-            )
+        // Skip modifiers with zero revenue
+        ->havingRaw("
+            SUM(
+                order_item_modifiers.quantity *
+                modifiers.price
+            ) > 0
+        ")
+
+        ->orderByDesc('total_amount')
+
+        ->limit(5)
+
+        ->get()
+
+        ->map(function ($item) {
+
+            return [
+
+                'menu_item' => $item->menu_item,
+
+                'name' => $item->name,
+
+                'qty' => (int) $item->qty,
+
+                'price' => (float) $item->modifier_price,
+
+                'sales' => (float) $item->total_amount,
+
+            ];
+        })
+
+        ->toArray();
+}
+
+    // private function topSellingModifiers(
+    //     Request $request,
+    //     Carbon $from,
+    //     Carbon $to
+    // ): array {
+
+    //     $query = OrderItemModifier::query()
+
+    //         ->join(
+    //             'order_items',
+    //             'order_items.id',
+    //             '=',
+    //             'order_item_modifiers.order_item_id'
+    //         )
+
+    //         ->join(
+    //             'orders',
+    //             'orders.id',
+    //             '=',
+    //             'order_items.order_id'
+    //         )
+
+    //         ->join(
+    //             'menu_items',
+    //             'menu_items.id',
+    //             '=',
+    //             'order_items.menu_item_id'
+    //         )
+
+    //         ->join(
+    //             'modifiers',
+    //             'modifiers.id',
+    //             '=',
+    //             'order_item_modifiers.modifier_id'
+    //         );
 
 
-            ->orderByDesc(
-                'qty'
-            )
+    //     $this->applyFilters(
+    //         $query,
+    //         $request,
+    //         $from,
+    //         $to
+    //     );
+    //     return $query
 
-            ->limit(5)
+    //         ->selectRaw("
+    //         menu_items.name as menu_item,
 
-            ->get()
+    //         modifiers.name as name,
 
-            ->map(function ($item) {
+    //         SUM(
+    //             order_item_modifiers.quantity
+    //         ) as qty,
 
-                // $profit = $item->total_amount - $item->total_cogs;
+    //         SUM(
+    //             order_item_modifiers.quantity *
+    //             order_item_modifiers.price
+    //         ) as total_amount
+    //     ")
 
-                // $profitability = $item->total_amount > 0
-                //     ? ($profit / $item->total_amount) * 100
-                //     : 0;
+
+    //         ->groupBy(
+    //             'menu_items.id',
+    //             'menu_items.name',
+    //             'modifiers.id',
+    //             'modifiers.name'
+    //         )
 
 
-                return [
+    //         ->orderByDesc(
+    //             'qty'
+    //         )
 
-                    'menu_item' => $item->menu_item,
+    //         ->limit(5)
 
-                    'name' => $item->name,
+    //         ->get()
 
-                    'qty' => (int)$item->qty,
+    //         ->map(function ($item) {
 
-                    'sales' => (float)$item->total_amount,
+    //             // $profit = $item->total_amount - $item->total_cogs;
 
-                    // 'total_cogs' => (float)$item->total_cogs,
+    //             // $profitability = $item->total_amount > 0
+    //             //     ? ($profit / $item->total_amount) * 100
+    //             //     : 0;
 
-                    // 'profitability' => [
-                    //     'percentage' => round($profitability, 2),
-                    //     'amount' => round($profit, 2)
-                    // ]
-                ];
-            })
 
-            ->toArray();
-    }
+    //             return [
+
+    //                 'menu_item' => $item->menu_item,
+
+    //                 'name' => $item->name,
+
+    //                 'qty' => (int)$item->qty,
+
+    //                 'sales' => (float)$item->total_amount,
+
+    //                 // 'total_cogs' => (float)$item->total_cogs,
+
+    //                 // 'profitability' => [
+    //                 //     'percentage' => round($profitability, 2),
+    //                 //     'amount' => round($profit, 2)
+    //                 // ]
+    //             ];
+    //         })
+
+    //         ->toArray();
+    // }
 
     private function hourlyBreakdown(
         Request $request,

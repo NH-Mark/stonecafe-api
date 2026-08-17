@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\Customer\PaymentController;
+use App\Http\Controllers\Api\DailySalesEmailController;
 use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\FoodSymbolController;
@@ -179,6 +180,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch(
         '/orders/{order}/status',
         [OrderController::class, 'updateStatus']
+    );
+
+    Route::get(
+        '/sales/email-settings',
+        [DailySalesEmailController::class, 'show']
+    );
+
+    Route::put(
+        '/sales/email-settings',
+        [DailySalesEmailController::class, 'update']
+    );
+
+    Route::post(
+        '/sales/email-settings/send-now',
+        [DailySalesEmailController::class, 'sendNow']
     );
   
 
