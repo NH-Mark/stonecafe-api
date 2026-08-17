@@ -168,7 +168,7 @@
                                                         {{ $stat['value'] }}
                                                     </div>
 
-                                                    <div
+                                                    <!-- <div
                                                         style="
                                                     margin-top:5px;
                                                     font-size:11px;
@@ -176,7 +176,7 @@
                                                 ">
                                                         {{ $stat['change'] }}
                                                         vs previous period
-                                                    </div>
+                                                    </div> -->
 
                                                 </td>
 
