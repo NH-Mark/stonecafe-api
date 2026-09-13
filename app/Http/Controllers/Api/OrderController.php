@@ -11,6 +11,7 @@ use App\Models\DiningSession;
 use App\Models\Order;
 use App\Models\PaymentMethod;
 use App\Models\PrintJob;
+use App\Models\RestaurantTable;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -198,7 +199,7 @@ class OrderController extends Controller
                  */
                     case 'type':
 
-                       $query->whereHas(
+                        $query->whereHas(
                             'orderType',
                             function ($q) use ($value) {
                                 $q->where(
@@ -211,9 +212,9 @@ class OrderController extends Controller
 
                         break;
 
-                     case 'source':
+                    case 'source':
 
-                       $query->whereHas(
+                        $query->whereHas(
                             'orderSource',
                             function ($q) use ($value) {
                                 $q->where(
@@ -1206,7 +1207,7 @@ class OrderController extends Controller
         Order $order
     ) {
         $validated = $request->validate([
-            'order_source_id'=>'nullable',
+            'order_source_id' => 'nullable',
             'payments' => [
                 'required',
                 'array',
@@ -1401,7 +1402,7 @@ class OrderController extends Controller
 
             $order->update([
                 'payment_status' => $paymentStatus,
-                'order_source_id'=>$validated['order_source_id']??1
+                'order_source_id' => $validated['order_source_id'] ?? 1
             ]);
 
 
@@ -1432,7 +1433,7 @@ class OrderController extends Controller
 
                 $order->update([
                     'status' => Order::STATUS_COMPLETED,
-                    'order_source_id'=>$validated['order_source_id']??1
+                    'order_source_id' => $validated['order_source_id'] ?? 1
                 ]);
 
 
@@ -1622,5 +1623,247 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Order sent to printer successfully.',
         ]);
+    }
+
+    public function assignTable(
+        Request $request,
+        Order $order
+    ) {
+        $validated = $request->validate([
+            'table_id' => [
+                'required',
+                'integer',
+                'exists:restaurant_tables,id',
+            ],
+        ]);
+
+        $result = DB::transaction(function () use (
+            $validated,
+            $order
+        ) {
+
+            /*
+        |--------------------------------------------------------------------------
+        | Lock order
+        |--------------------------------------------------------------------------
+        */
+
+            $order = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Make sure this is a QR dine-in order
+        |--------------------------------------------------------------------------
+        */
+
+            $order->load([
+                'orderType',
+                'orderSource',
+                'diningSession',
+            ]);
+
+            $orderTypeCode =
+                strtolower(
+                    (string) $order->orderType?->code
+                );
+
+            $sourceName =
+                strtolower(
+                    (string) $order->orderSource?->name
+                );
+
+
+            if ($orderTypeCode !== 'dine_in') {
+
+                abort(
+                    422,
+                    'Only dine-in orders can have a table assigned.'
+                );
+            }
+
+
+            if ($sourceName !== 'qr order') {
+
+                abort(
+                    422,
+                    'Only QR orders can have a table assigned.'
+                );
+            }
+
+
+            if (
+                strtolower(
+                    (string) $order->status
+                ) !== 'confirmed'
+            ) {
+
+                abort(
+                    422,
+                    'Only confirmed orders can have a table assigned.'
+                );
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Already assigned?
+        |--------------------------------------------------------------------------
+        */
+
+            if (
+                $order->table_id ||
+                $order->dining_session_id
+            ) {
+
+                abort(
+                    422,
+                    'A table is already assigned to this order.'
+                );
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Lock selected table
+        |--------------------------------------------------------------------------
+        */
+
+            $table = RestaurantTable::query()
+                ->lockForUpdate()
+                ->findOrFail(
+                    $validated['table_id']
+                );
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Make sure table isn't already occupied
+        |--------------------------------------------------------------------------
+        |
+        | We determine occupancy from active dining sessions rather
+        | than trusting a potentially stale table status.
+        |
+        */
+
+            $tableOccupied =
+                DiningSession::query()
+                ->where(
+                    'table_id',
+                    $table->id
+                )
+                ->whereIn(
+                    'status',
+                    [
+                        'open',
+                        'billing',
+                    ]
+                )
+                ->exists();
+
+
+            if ($tableOccupied) {
+
+                abort(
+                    422,
+                    'This table is already occupied.'
+                );
+            }
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Create dining session
+        |--------------------------------------------------------------------------
+        */
+
+            $diningSession =
+                DiningSession::create([
+
+                    'table_id' =>
+                    $table->id,
+
+                    'guest_count' =>
+                    1,
+
+                    'status' =>
+                    'open',
+
+                    'subtotal' =>
+                    $order->subtotal ?? 0,
+
+                    'discount_amount' =>
+                    $order->discount_amount ?? 0,
+
+                    'total' =>
+                    $order->total_amount ?? 0,
+
+                    'opened_at' =>
+                    now(),
+
+                ]);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Attach order to table + session
+        |--------------------------------------------------------------------------
+        */
+
+            $order->update([
+
+                'table_id' =>
+                $table->id,
+
+                'dining_session_id' =>
+                $diningSession->id,
+
+            ]);
+
+
+            /*
+        |--------------------------------------------------------------------------
+        | Reload complete order
+        |--------------------------------------------------------------------------
+        */
+
+            $order->load([
+
+                'items.menuItem',
+
+                'items.modifiers.modifier',
+
+                'items.discounts.discount',
+
+                'payments.paymentMethod',
+
+                'discounts.discount',
+
+                'customer',
+
+                'table',
+
+                'cashier',
+
+                'location',
+
+                'orderType',
+
+                'orderSource',
+
+                'diningSession.table',
+
+            ]);
+
+
+            return $order;
+        });
+
+
+        return new OrderResource(
+            $result
+        );
     }
 }

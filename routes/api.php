@@ -200,6 +200,11 @@ Route::middleware('auth:sanctum')->group(function () {
         '/sales/email-settings/send-now',
         [DailySalesEmailController::class, 'sendNow']
     );
+
+    Route::post(
+        '/orders/{order}/assign-table',
+        [OrderController::class, 'assignTable']
+    );
   
 
 });

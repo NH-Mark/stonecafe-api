@@ -22,6 +22,7 @@ class OrderResource extends JsonResource
             'source' => $this->orderSource?->name,
             'customer' => $this->customer?->name,
             'table' => $this->table?->name,
+            'restaurant_table' => $this->table,
             'cashier' => $this->cashier?->name,
             'location' => $this->location?->name,
             'status' => $this->status,
@@ -34,6 +35,7 @@ class OrderResource extends JsonResource
             'total' => $this->total_amount,
             'notes' => $this->notes,
             'number_plate' => $this->number_plate,
+            'dining_session_id' =>$this->dining_session_id,
             'order_source_id'=>$this->order_source_id,
             'ordered_at' => optional($this->ordered_at)->format('Y-m-d H:i:s'),
             'items' => $this->items->map(function ($item) {
