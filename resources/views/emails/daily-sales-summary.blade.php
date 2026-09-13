@@ -64,11 +64,38 @@
 
                             <div
                                 style="
-                    margin-top:6px;
-                    font-size:13px;
-                    color:#ddd6d0;
-                ">
-                                {{ now()->subDay()->format('l, d F Y') }}
+                                    margin-top:6px;
+                                    font-size:13px;
+                                    color:#ddd6d0;
+                                ">
+                                @php
+                                $rangeLabels = [
+                                'today' => 'Today',
+                                'yesterday' => 'Yesterday',
+                                'this_week' => 'This Week',
+                                'this_month' => 'This Month',
+                                'last_month' => 'Last Month',
+                                'custom' => '',
+                                ];
+
+                                $rangeLabel = $rangeLabels[$dateRange] ?? 'Sales Report';
+                                @endphp
+
+                                <div
+                                    style="
+        margin-top:6px;
+        font-size:13px;
+        color:#ddd6d0;
+    ">
+                                    {{ $rangeLabel }}
+                                    ·
+                                    {{ \Carbon\Carbon::parse($fromDate)->format('d M Y') }}
+
+                                    @if($fromDate !== $toDate)
+                                    -
+                                    {{ \Carbon\Carbon::parse($toDate)->format('d M Y') }}
+                                    @endif
+                                </div>
                             </div>
 
                         </td>
@@ -92,13 +119,13 @@
 
                             <p
                                 style="
-                    margin:8px 0 0;
-                    font-size:14px;
-                    line-height:22px;
-                    color:#81786f;
-                ">
+                                    margin:8px 0 0;
+                                    font-size:14px;
+                                    line-height:22px;
+                                    color:#81786f;
+                                ">
                                 Here is the sales and order performance summary
-                                for the previous business day.
+                                for the selected reporting period.
                             </p>
 
                         </td>

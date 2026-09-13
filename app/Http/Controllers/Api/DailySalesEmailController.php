@@ -42,12 +42,27 @@ class DailySalesEmailController extends Controller
                 'required',
                 'date_format:H:i',
             ],
+            'date_range'=>['required','string'],
+
+            'from_date' => [
+                'required',
+                'date',
+            ],
+
+            'to_date' => [
+                'required',
+                'date',
+                'after_or_equal:from_date',
+            ],
         ]);
 
         $settings = $this->service->updateSettings(
             $validated['enabled'],
             $validated['recipients'],
-            $validated['send_time']
+            $validated['send_time'],
+            $validated['date_range'],
+            $validated['from_date'],
+            $validated['to_date']
         );
 
         return response()->json([
@@ -57,9 +72,30 @@ class DailySalesEmailController extends Controller
         ]);
     }
 
-    public function sendNow()
+    public function sendNow(Request $request)
     {
-        $this->service->sendNow();
+        $validated = $request->validate([
+            'from_date' => [
+                'required',
+                'date',
+            ],
+
+            'to_date' => [
+                'required',
+                'date',
+                'after_or_equal:from_date',
+            ],
+            'date_range'=>[
+                'required',
+                'string'
+            ],
+        ]);
+
+        $this->service->sendNow(
+            $validated['date_range'],
+            $validated['from_date'],
+            $validated['to_date']
+        );
 
         return response()->json([
             'message' =>

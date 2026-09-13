@@ -18,8 +18,56 @@ class DailySalesEmailService
                 'enabled' => false,
                 'recipients' => [],
                 'send_time' => '18:00',
+                'date_range' => 'yesterday',
+                'from_date' => now()->subDay()->toDateString(),
+                'to_date' => now()->subDay()->toDateString(),
             ];
         }
+
+        return [
+            'enabled' => $settings->enabled,
+            'recipients' => $settings->recipients ?? [],
+            'date_range' => $settings->date_range,
+            'send_time' => substr(
+                $settings->send_time,
+                0,
+                5
+            ),
+            'from_date' => $settings->from_date,
+            'to_date' => $settings->to_date,
+        ];
+    }
+
+    public function updateSettings(
+        bool $enabled,
+        array $recipients,
+        string $sendTime,
+        string $dateRange,
+        string $fromDate,
+        string $toDate
+    ): array {
+
+        $recipients = collect($recipients)
+            ->map(
+                fn ($email) =>
+                trim(strtolower($email))
+            )
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $settings = DailySalesEmailSetting::updateOrCreate(
+            ['id' => 1],
+            [
+                'enabled' => $enabled,
+                'recipients' => $recipients,
+                'send_time' => $sendTime,
+                'date_range' => $dateRange,
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+            ]
+        );
 
         return [
             'enabled' => $settings->enabled,
@@ -29,45 +77,79 @@ class DailySalesEmailService
                 0,
                 5
             ),
+            'date_range' => $settings->date_range,
+            'from_date' => $settings->from_date,
+            'to_date' => $settings->to_date,
         ];
     }
 
-    public function updateSettings(
-        bool $enabled,
-        array $recipients,
-        string $sendTime
+    /*
+    |--------------------------------------------------------------------------
+    | Resolve Date Range
+    |--------------------------------------------------------------------------
+    */
+
+    private function resolveDateRange(
+        string $dateRange,
+        ?string $savedFromDate = null,
+        ?string $savedToDate = null
     ): array {
+        $today = now();
 
-        $recipients = collect($recipients)
-            ->map(
-                fn($email) =>
-                trim(strtolower($email))
-            )
-            ->filter()
-            ->unique()
-            ->values()
-            ->toArray();
+        return match ($dateRange) {
 
-        $settings =
-            DailySalesEmailSetting::updateOrCreate(
-                ['id' => 1],
-                [
-                    'enabled' => $enabled,
-                    'recipients' => $recipients,
-                    'send_time' => $sendTime,
-                ]
-            );
+            'today' => [
+                'from_date' => $today->toDateString(),
+                'to_date' => $today->toDateString(),
+            ],
 
-        return [
-            'enabled' => $settings->enabled,
-            'recipients' =>
-            $settings->recipients ?? [],
-            'send_time' => substr(
-                $settings->send_time,
-                0,
-                5
+            'yesterday' => [
+                'from_date' => $today->copy()
+                    ->subDay()
+                    ->toDateString(),
+
+                'to_date' => $today->copy()
+                    ->subDay()
+                    ->toDateString(),
+            ],
+
+            'this_week' => [
+                'from_date' => $today->copy()
+                    ->startOfWeek()
+                    ->toDateString(),
+
+                'to_date' => $today->toDateString(),
+            ],
+
+            'this_month' => [
+                'from_date' => $today->copy()
+                    ->startOfMonth()
+                    ->toDateString(),
+
+                'to_date' => $today->toDateString(),
+            ],
+
+            'last_month' => [
+                'from_date' => $today->copy()
+                    ->subMonthNoOverflow()
+                    ->startOfMonth()
+                    ->toDateString(),
+
+                'to_date' => $today->copy()
+                    ->subMonthNoOverflow()
+                    ->endOfMonth()
+                    ->toDateString(),
+            ],
+
+            'custom' => [
+                'from_date' => $savedFromDate,
+                'to_date' => $savedToDate,
+            ],
+
+            default => throw new \InvalidArgumentException(
+                "Invalid date range: {$dateRange}"
             ),
-        ];
+        };
     }
 
     /*
@@ -104,31 +186,51 @@ class DailySalesEmailService
 
         $currentTime = now()->format('H:i');
 
-        Log::info('Daily sales email time check', [
-            'configured' => $configuredTime,
-            'current' => $currentTime,
-        ]);
-
         if ($configuredTime !== $currentTime) {
             return;
         }
 
-        Log::info('Sending daily sales email', [
-            'recipients' => $recipients,
+        /*
+        |--------------------------------------------------------------------------
+        | Always calculate predefined ranges using today's date
+        |--------------------------------------------------------------------------
+        */
+
+        $dateRange = $settings->date_range;
+
+        $dates = $this->resolveDateRange(
+            $dateRange,
+            $settings->from_date,
+            $settings->to_date
+        );
+
+        Log::info('Daily sales email date range resolved', [
+            'date_range' => $dateRange,
+            'from_date' => $dates['from_date'],
+            'to_date' => $dates['to_date'],
         ]);
 
-        $this->sendEmail($recipients);
+        $this->sendEmail(
+            $recipients,
+            $dateRange,
+            $dates['from_date'],
+            $dates['to_date']
+        );
     }
+
     /*
     |--------------------------------------------------------------------------
     | Manual Test Send
     |--------------------------------------------------------------------------
     */
 
-    public function sendNow(): void
-    {
-        $settings =
-            DailySalesEmailSetting::first();
+    public function sendNow(
+        string $dateRange,
+        string $fromDate,
+        string $toDate
+    ): void {
+
+        $settings = DailySalesEmailSetting::first();
 
         if (!$settings) {
             throw new \Exception(
@@ -136,8 +238,7 @@ class DailySalesEmailService
             );
         }
 
-        $recipients =
-            $settings->recipients ?? [];
+        $recipients = $settings->recipients ?? [];
 
         if (empty($recipients)) {
             throw new \Exception(
@@ -145,11 +246,18 @@ class DailySalesEmailService
             );
         }
 
-        // IMPORTANT:
-        // Do not check enabled or send_time here.
-        // This is a manual test.
+        $dates = $this->resolveDateRange(
+            $dateRange,
+            $fromDate,
+            $toDate
+        );
 
-        $this->sendEmail($recipients);
+        $this->sendEmail(
+            $recipients,
+            $dateRange,
+            $dates['from_date'],
+            $dates['to_date']
+        );
     }
 
     /*
@@ -159,7 +267,10 @@ class DailySalesEmailService
     */
 
     private function sendEmail(
-        array $recipients
+        array $recipients,
+        string $dateRange,
+        string $fromDate,
+        string $toDate
     ): void {
 
         $dashboardService =
@@ -168,18 +279,21 @@ class DailySalesEmailService
         $request = request();
 
         $request->merge([
-            'range' => 'yesterday',
+            'range' => 'custom',
+            'start_date' => $fromDate,
+            'end_date' => $toDate,
         ]);
 
         $dashboard =
-            $dashboardService
-            ->dashboard($request);
+            $dashboardService->dashboard($request);
 
         Mail::to($recipients)
             ->send(
                 new DailySalesSummaryMail(
                     $dashboard,
-                    now()->subDay()
+                    $dateRange,
+                    $fromDate,
+                    $toDate
                 )
             );
     }

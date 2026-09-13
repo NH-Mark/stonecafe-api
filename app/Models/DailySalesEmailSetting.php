@@ -10,6 +10,9 @@ class DailySalesEmailSetting extends Model
         'enabled',
         'recipients',
         'send_time',
+        'from_date',
+        'to_date',
+        'date_range'
     ];
 
     protected $casts = [
