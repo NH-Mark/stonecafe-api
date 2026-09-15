@@ -42,8 +42,8 @@ class RoleController extends Controller
     }
 
     public function update(
-    UpdateRoleRequest $request,
-    Role $role
+        UpdateRoleRequest $request,
+        Role $role
     ) {
 
         $role->update([

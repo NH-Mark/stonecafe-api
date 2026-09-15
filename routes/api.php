@@ -159,6 +159,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/pos/dining-sessions/{diningSession}',
         [DiningSessionController::class, 'show']
     );
+    Route::delete(
+        '/pos/dining-sessions/{diningSession}',
+        [DiningSessionController::class, 'destroy']
+    );
     Route::post(
         '/orders/{order}/items',
         [OrderController::class, 'addItems']

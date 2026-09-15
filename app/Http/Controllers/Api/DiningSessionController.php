@@ -464,4 +464,21 @@ class DiningSessionController extends Controller
             $updatedSession,
         ]);
     }
+
+    public function destroy(DiningSession $diningSession): JsonResponse
+    {
+       
+        if ($diningSession->orders()->exists()) {
+            return response()->json([
+                'message' => 'Cannot close a session that has orders.',
+            ], 422);
+        }
+
+        $diningSession->delete();
+
+        return response()->json([
+            'message' =>  'Dining session Closed',
+        ]);
+    }
 }
+
