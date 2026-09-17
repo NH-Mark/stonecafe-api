@@ -31,6 +31,9 @@ return [
         'role' => Role::class,
 
     ],
+    'defaults' => [
+        'guard' => 'sanctum',
+    ],
 
     'table_names' => [
 

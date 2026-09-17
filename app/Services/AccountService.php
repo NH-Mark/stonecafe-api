@@ -25,9 +25,7 @@ class AccountService
     public function changePassword(User $user, array $data): void
     {
         $user->update([
-
             'password' => Hash::make($data['password']),
-
         ]);
     }
 }

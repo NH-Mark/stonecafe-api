@@ -13,7 +13,7 @@ class RoleService
 
         $role = Role::create([
             'name' => $data['name'],
-            'guard_name' => 'web'
+            'guard_name' => 'sanctum'
         ]);
 
 

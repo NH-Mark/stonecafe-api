@@ -69,7 +69,12 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('menu-items', MenuItemController::class);
+    Route::apiResource('menu-items', MenuItemController::class)
+    ->middlewareFor('index', 'permission:menu.view')
+    ->middlewareFor('show', 'permission:menu.view')
+    ->middlewareFor('store', 'permission:menu.create')
+    ->middlewareFor('update', 'permission:menu.update')
+    ->middlewareFor('destroy', 'permission:menu.delete');
 
      Route::get(
         '/menu-categories',
