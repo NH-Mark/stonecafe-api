@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Events\KitchenOrderCreated;
+use App\Events\KitchenOrderUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\AddOrderItemsRequest;
 use App\Http\Requests\Order\OrderRequest;
@@ -985,7 +986,7 @@ class OrderController extends Controller
             ]);
 
             event(
-                new KitchenOrderCreated(
+                new KitchenOrderUpdated(
                     $order
                 )
             );
