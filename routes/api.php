@@ -149,6 +149,12 @@ Route::middleware('auth:sanctum')->group(function () {
         '/kitchen/orders',
         [KitchenController::class,'index']
     );
+
+    Route::get(
+        '/kitchen/orders/{order}',
+        [KitchenController::class, 'show']
+    );
+    
     Route::patch(
         '/kitchen/orders/{order}/status',
         [KitchenController::class,'updateStatus']

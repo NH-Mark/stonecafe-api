@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Events\KitchenOrderUpdated;
+use App\Http\Resources\KitchenOrderResource;
+use App\Http\Resources\OrderResource;
 
 class KitchenController extends Controller
 {
@@ -69,6 +71,18 @@ class KitchenController extends Controller
             'data'=>$orders
         ]);
 
+    }
+
+    public function show(Order $order)
+    {
+        $order->load([
+            'items.menuItem',
+            'items.modifiers.modifier',
+            'customer',
+            'table',
+        ]);
+
+        return new KitchenOrderResource($order);
     }
 
     public function updateStatus(
