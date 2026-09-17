@@ -984,6 +984,13 @@ class OrderController extends Controller
 
             ]);
 
+            event(
+                new KitchenOrderCreated(
+                    $order
+                )
+            );
+
+
 
             /*
         |--------------------------------------------------------------------------
@@ -1018,6 +1025,8 @@ class OrderController extends Controller
                 'diningSession',
 
             ]);
+
+
 
 
             return $order;
