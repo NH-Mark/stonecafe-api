@@ -759,11 +759,11 @@ class OrderController extends Controller
             |
             */
 
-            // event(
-            //     new KitchenOrderCreated(
-            //         $order
-            //     )
-            // );
+            event(
+                new KitchenOrderCreated(
+                    $order
+                )
+            );
 
 
             return $order;
@@ -1588,6 +1588,12 @@ class OrderController extends Controller
 
         $order->status = $validated['status'];
         $order->save();
+
+        if ($order->status === 'confirmed') {
+            event(
+                new KitchenOrderCreated($order->fresh())
+            );
+        }
 
         return response()->json([
             'message' => 'Order status updated successfully.',
