@@ -194,7 +194,7 @@ class DiningSessionController extends Controller
                         'status' =>
                         $order->status,
 
-                        'kitchenStatus' =>
+                        'kitchen_status' =>
                         $order->kitchen_status,
 
                         'total' =>
