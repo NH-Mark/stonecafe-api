@@ -20,9 +20,9 @@ class KitchenController extends Controller
                 '>=',
                 now()->startOfDay()
             )
-            ->where(
+            ->whereIn(
                 'status',
-                'confirmed'
+                ['confirmed','completed']
             )
             ->where(function($query){
 

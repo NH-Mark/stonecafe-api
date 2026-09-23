@@ -131,13 +131,20 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/payment-status',
         [OrderController::class, 'updatePaymentStatus']
     );
+
     Route::post(
         '/orders/{order}/payments',
         [OrderController::class, 'storePayment']
     );
-     Route::post(
+
+    Route::post(
         '/orders',
         [OrderController::class, 'store']
+    );
+
+    Route::put(
+        '/orders/{order}',
+        [OrderController::class, 'update']
     );
 
     Route::get(
@@ -154,7 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
         '/kitchen/orders/{order}',
         [KitchenController::class, 'show']
     );
-    
+
     Route::patch(
         '/kitchen/orders/{order}/status',
         [KitchenController::class,'updateStatus']
@@ -220,6 +227,5 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/assign-table',
         [OrderController::class, 'assignTable']
     );
-  
 
 });

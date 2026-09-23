@@ -7,6 +7,7 @@ use App\Events\KitchenOrderUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\AddOrderItemsRequest;
 use App\Http\Requests\Order\OrderRequest;
+use App\Http\Requests\Order\UpdateOrderDiscountRequest as OrderUpdateOrderDiscountRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\DiningSession;
 use App\Models\Order;
@@ -576,7 +577,7 @@ class OrderController extends Controller
                 */
 
                 'kitchen_status' =>
-                Order::KITCHEN_STATUS_PENDING,
+                Order::KITCHEN_STATUS_PREPARING,
 
                 /*
                 |--------------------------------------------------------------------------
@@ -782,263 +783,675 @@ class OrderController extends Controller
         );
     }
 
-    public function addItems(
-        AddOrderItemsRequest $request,
-        Order $order
+    public function updateDiscount(
+    OrderUpdateOrderDiscountRequest $request,
+    Order $order
+) {
+    $order = DB::transaction(function () use (
+        $request,
+        $order
     ) {
-        $order = DB::transaction(function () use (
-            $request,
-            $order
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($order->id);
+
+        if (in_array($order->status, [
+            Order::STATUS_COMPLETED,
+            Order::STATUS_CANCELLED,
+        ])) {
+            abort(
+                422,
+                'Order cannot be updated because it is already closed.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Item discounts
+        |--------------------------------------------------------------------------
+        */
+
+        foreach (
+            $request->input('items', [])
+            as $row
         ) {
-
-            /*
-        |--------------------------------------------------------------------------
-        | Lock order
-        |--------------------------------------------------------------------------
-        */
-
-            $order = Order::query()
+            $item = $order->items()
                 ->lockForUpdate()
-                ->findOrFail($order->id);
+                ->findOrFail($row['id']);
 
-
-            /*
-        |--------------------------------------------------------------------------
-        | Do not allow adding items to closed orders
-        |--------------------------------------------------------------------------
-        */
-
-            if (
-                in_array(
-                    $order->status,
-                    [
-                        Order::STATUS_COMPLETED,
-                        Order::STATUS_CANCELLED,
-                    ]
-                )
-            ) {
-                abort(
-                    422,
-                    'Items cannot be added to this order.'
-                );
-            }
-
-
-            /*
-        |--------------------------------------------------------------------------
-        | Add items
-        |--------------------------------------------------------------------------
-        */
+            $item->discounts()->delete();
 
             foreach (
-                $request->items as $row
+                $row['discounts'] ?? []
+                as $discount
             ) {
-
-                $item =
-                    $order->items()->create([
-
-                        'menu_item_id' =>
-                        $row['menu_item_id'],
-
-                        'quantity' =>
-                        $row['quantity'],
-
-                        'unit_price' =>
-                        $row['unit_price'],
-
-                        'total_price' =>
-                        $row['total_price'],
-
-                        'notes' =>
-                        $row['notes'] ?? null,
-
-                    ]);
-
-
-                /*
-            |--------------------------------------------------------------------------
-            | Modifiers
-            |--------------------------------------------------------------------------
-            */
-
-                foreach (
-                    $row['modifiers'] ?? []
-                    as $modifier
-                ) {
-
-                    $item->modifiers()->create([
-
-                        'modifier_id' =>
-                        $modifier['modifier_id'],
-
-                        'quantity' =>
-                        $modifier['quantity'],
-
-                        'price' =>
-                        $modifier['price'],
-
-                    ]);
-                }
-
-
-                /*
-            |--------------------------------------------------------------------------
-            | Item discounts
-            |--------------------------------------------------------------------------
-            */
-
-                foreach (
-                    $row['discounts'] ?? []
-                    as $discount
-                ) {
-
-                    $item->discounts()->create([
-
-                        'discount_id' =>
+                $item->discounts()->create([
+                    'discount_id' =>
                         $discount['discount_id'],
 
-                        'amount' =>
+                    'amount' =>
                         $discount['amount'],
-
-                    ]);
-                }
+                ]);
             }
+        }
 
-
-            /*
+        /*
         |--------------------------------------------------------------------------
-        | Recalculate order totals
-        |--------------------------------------------------------------------------
-        */
-
-            $subtotal =
-                $order->items()
-                ->sum('total_price');
-
-
-            $itemDiscount =
-                $order->items()
-                ->with('discounts')
-                ->get()
-                ->sum(
-                    fn($item) =>
-                    $item->discounts->sum(
-                        'amount'
-                    )
-                );
-
-
-            $orderDiscount =
-                $order->discounts()
-                ->sum('amount');
-
-
-            $discountAmount =
-                $itemDiscount +
-                $orderDiscount;
-
-
-            $taxAmount =
-                0;
-
-
-            $serviceCharge =
-                0;
-
-
-            $total =
-                max(
-                    $subtotal -
-                        $discountAmount +
-                        $taxAmount +
-                        $serviceCharge,
-
-                    0
-                );
-
-
-            /*
-        |--------------------------------------------------------------------------
-        | Update order
+        | Order discounts
         |--------------------------------------------------------------------------
         */
 
-            $order->update([
+        $order->discounts()->delete();
 
-                'subtotal' =>
-                $subtotal,
+        foreach (
+            $request->input('discounts', [])
+            as $discount
+        ) {
+            $order->discounts()->create([
+                'discount_id' =>
+                    $discount['discount_id'],
 
-                'discount_amount' =>
-                $discountAmount,
-
-                'tax_amount' =>
-                $taxAmount,
-
-                'service_charge' =>
-                $serviceCharge,
-
-                'total_amount' =>
-                $total,
-
-                'kitchen_status' =>
-                Order::KITCHEN_STATUS_PENDING,
-
+                'amount' =>
+                    $discount['amount'],
             ]);
+        }
 
-            event(
-                new KitchenOrderUpdated(
-                    $order
-                )
+        /*
+        |--------------------------------------------------------------------------
+        | Recalculate totals
+        |--------------------------------------------------------------------------
+        */
+
+        $subtotal = $order->items()
+            ->sum('total_price');
+
+        $itemDiscount = $order->items()
+            ->with('discounts')
+            ->get()
+            ->sum(
+                fn ($item) =>
+                    $item->discounts->sum('amount')
             );
 
+        $orderDiscount = $order->discounts()
+            ->sum('amount');
 
+        $discountAmount =
+            $itemDiscount +
+            $orderDiscount;
 
-            /*
+        $taxAmount = 0;
+        $serviceCharge = 0;
+
+        $total = max(
+            $subtotal -
+            $discountAmount +
+            $taxAmount +
+            $serviceCharge,
+            0
+        );
+
+        $order->update([
+            'subtotal' =>
+                $subtotal,
+
+            'discount_amount' =>
+                $discountAmount,
+
+            'tax_amount' =>
+                $taxAmount,
+
+            'service_charge' =>
+                $serviceCharge,
+
+            'total_amount' =>
+                $total,
+        ]);
+
+        /*
         |--------------------------------------------------------------------------
         | Return complete order
         |--------------------------------------------------------------------------
         */
 
-            $order->load([
+        $order->load([
+            'items.menuItem',
+            'items.modifiers.modifier',
+            'items.discounts.discount',
+            'payments.paymentMethod',
+            'discounts.discount',
+            'customer',
+            'table',
+            'cashier',
+            'location',
+            'orderType',
+            'orderSource',
+            'diningSession',
+        ]);
 
-                'items.menuItem',
+        return $order;
+    });
 
-                'items.modifiers.modifier',
+    return new OrderResource($order);
+}
 
-                'items.discounts.discount',
+public function update(
+    OrderUpdateOrderDiscountRequest $request,
+    Order $order
+) {
+    $order = DB::transaction(function () use (
+        $request,
+        $order
+    ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Lock order
+        |--------------------------------------------------------------------------
+        */
 
-                'payments.paymentMethod',
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($order->id);
 
-                'discounts.discount',
+        /*
+        |--------------------------------------------------------------------------
+        | Order must still be editable
+        |--------------------------------------------------------------------------
+        */
 
-                'customer',
+        if (in_array($order->status, [
+            Order::STATUS_COMPLETED,
+            Order::STATUS_CANCELLED,
+        ])) {
+            abort(
+                422,
+                'Order cannot be updated because it is already closed.'
+            );
+        }
 
-                'table',
+        /*
+        |--------------------------------------------------------------------------
+        | Optimistic locking
+        |--------------------------------------------------------------------------
+        */
 
-                'cashier',
+        if (
+            $request->filled('version') &&
+            $order->version !== null &&
+            (int) $request->input('version') !== (int) $order->version
+        ) {
+            abort(
+                409,
+                'Order has been modified by another request.'
+            );
+        }
 
-                'location',
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT
+        |--------------------------------------------------------------------------
+        | This endpoint represents the COMPLETE current order.
+        |
+        | New items should already have an order item ID because they
+        | must first be created through:
+        |
+        | POST /orders/{order}/items
+        |
+        | Therefore PUT /orders/{order} only updates existing items.
+        |--------------------------------------------------------------------------
+        */
 
-                'orderType',
+        $items = $request->input('items', []);
 
-                'orderSource',
+        /*
+        |--------------------------------------------------------------------------
+        | Validate that every item belongs to this order
+        |--------------------------------------------------------------------------
+        */
 
-                'diningSession',
+        $requestedItemIds = collect($items)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Reject items without IDs
+        |--------------------------------------------------------------------------
+        |
+        | A missing ID means this item has not been synchronized with the
+        | backend yet.
+        |
+        | It must be sent through addItems(), not update().
+        |--------------------------------------------------------------------------
+        */
+
+        $newItem = collect($items)
+            ->first(fn ($row) => empty($row['id']));
+
+        if ($newItem) {
+            abort(
+                422,
+                'Order contains an unsaved item. Send new items before saving order changes.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remove items that no longer exist in the current cart
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        | The request represents the COMPLETE current cart.
+        |
+        */
+
+        $order->items()
+            ->whereNotIn('id', $requestedItemIds)
+            ->delete();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update existing items
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($items as $row) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Existing item
+            |--------------------------------------------------------------------------
+            |
+            | We already rejected rows without an ID above.
+            |
+            */
+
+            $item = $order->items()
+                ->lockForUpdate()
+                ->findOrFail((int) $row['id']);
+
+            $item->update([
+                'menu_item_id' => $row['menu_item_id'],
+                'quantity' => $row['quantity'],
+                'unit_price' => $row['unit_price'],
+                'total_price' => $row['total_price'],
+                'notes' => $row['notes'] ?? null,
             ]);
 
+            /*
+            |--------------------------------------------------------------------------
+            | Replace modifiers
+            |--------------------------------------------------------------------------
+            */
 
+            $item->modifiers()->delete();
 
+            foreach ($row['modifiers'] ?? [] as $modifier) {
+                $item->modifiers()->create([
+                    'modifier_id' => $modifier['modifier_id'],
+                    'quantity' => $modifier['quantity'] ?? 1,
+                    'price' => $modifier['price'],
+                ]);
+            }
 
-            return $order;
-        });
+            /*
+            |--------------------------------------------------------------------------
+            | Replace item discounts
+            |--------------------------------------------------------------------------
+            */
 
+            $item->discounts()->delete();
 
-        return new OrderResource(
-            $order
+            foreach ($row['discounts'] ?? [] as $discount) {
+                $item->discounts()->create([
+                    'discount_id' => $discount['discount_id'],
+                    'amount' => $discount['amount'],
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Replace order discounts
+        |--------------------------------------------------------------------------
+        */
+
+        $order->discounts()->delete();
+
+        foreach ($request->input('discounts', []) as $discount) {
+            $order->discounts()->create([
+                'discount_id' => $discount['discount_id'],
+                'amount' => $discount['amount'],
+            ]);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Order notes
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->has('notes')) {
+            $order->notes = $request->input('notes');
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Recalculate totals
+        |--------------------------------------------------------------------------
+        */
+
+        $subtotal = $order->items()
+            ->sum('total_price');
+
+        $itemDiscount = $order->items()
+            ->with('discounts')
+            ->get()
+            ->sum(
+                fn ($item) =>
+                    $item->discounts->sum('amount')
+            );
+
+        $orderDiscount = $order->discounts()
+            ->sum('amount');
+
+        $discountAmount =
+            $itemDiscount +
+            $orderDiscount;
+
+        $taxAmount = 0;
+
+        $serviceCharge = 0;
+
+        $total = max(
+            $subtotal -
+            $discountAmount +
+            $taxAmount +
+            $serviceCharge,
+            0
         );
-    }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Update order
+        |--------------------------------------------------------------------------
+        */
+
+        $order->update([
+            'subtotal' => $subtotal,
+            'discount_amount' => $discountAmount,
+            'tax_amount' => $taxAmount,
+            'service_charge' => $serviceCharge,
+            'total_amount' => $total,
+
+            /*
+             * Increment version after successful sync.
+             */
+            'version' => ($order->version ?? 0) + 1,
+
+            /*
+             * Saving the complete order means it is now being processed
+             * by the kitchen.
+             */
+            'kitchen_status' =>
+                Order::KITCHEN_STATUS_PREPARING,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Kitchen event
+        |--------------------------------------------------------------------------
+        */
+
+        event(
+            new KitchenOrderUpdated($order)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Reload complete order
+        |--------------------------------------------------------------------------
+        */
+
+        $order->load([
+            'items.menuItem',
+            'items.modifiers.modifier',
+            'items.discounts.discount',
+            'payments.paymentMethod',
+            'discounts.discount',
+            'customer',
+            'table',
+            'cashier',
+            'location',
+            'orderType',
+            'orderSource',
+            'diningSession',
+        ]);
+
+        return $order;
+    });
+
+    return new OrderResource($order);
+}
+    public function addItems(
+    AddOrderItemsRequest $request,
+    Order $order
+) {
+    [$order, $createdItems] = DB::transaction(function () use (
+        $request,
+        $order
+    ) {
+
+        $order = Order::query()
+            ->lockForUpdate()
+            ->findOrFail($order->id);
+
+        if (
+            in_array(
+                $order->status,
+                [
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_CANCELLED,
+                ]
+            )
+        ) {
+            abort(
+                422,
+                'Items cannot be added to this order.'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Add items
+        |--------------------------------------------------------------------------
+        */
+
+        $createdItems = [];
+
+        foreach ($request->items as $row) {
+
+            $item = $order->items()->create([
+                'menu_item_id' =>
+                    $row['menu_item_id'],
+
+                'quantity' =>
+                    $row['quantity'],
+
+                'unit_price' =>
+                    $row['unit_price'],
+
+                'total_price' =>
+                    $row['total_price'],
+
+                'notes' =>
+                    $row['notes'] ?? null,
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Modifiers
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $row['modifiers'] ?? []
+                as $modifier
+            ) {
+                $item->modifiers()->create([
+                    'modifier_id' =>
+                        $modifier['modifier_id'],
+
+                    'quantity' =>
+                        $modifier['quantity'],
+
+                    'price' =>
+                        $modifier['price'],
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Item discounts
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $row['discounts'] ?? []
+                as $discount
+            ) {
+                $item->discounts()->create([
+                    'discount_id' =>
+                        $discount['discount_id'],
+
+                    'amount' =>
+                        $discount['amount'],
+                ]);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Keep client line_id -> database item id mapping
+            |--------------------------------------------------------------------------
+            */
+
+            $createdItems[] = [
+                'id' => $item->id,
+                'line_id' => $row['line_id'] ?? null,
+            ];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Recalculate order totals
+        |--------------------------------------------------------------------------
+        */
+
+        $subtotal = $order->items()
+            ->sum('total_price');
+
+        $itemDiscount = $order->items()
+            ->with('discounts')
+            ->get()
+            ->sum(
+                fn ($item) =>
+                    $item->discounts->sum('amount')
+            );
+
+        $orderDiscount = $order->discounts()
+            ->sum('amount');
+
+        $discountAmount =
+            $itemDiscount +
+            $orderDiscount;
+
+        $taxAmount = 0;
+        $serviceCharge = 0;
+
+        $total = max(
+            $subtotal -
+                $discountAmount +
+                $taxAmount +
+                $serviceCharge,
+            0
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update order
+        |--------------------------------------------------------------------------
+        */
+
+        $order->update([
+            'subtotal' =>
+                $subtotal,
+
+            'discount_amount' =>
+                $discountAmount,
+
+            'tax_amount' =>
+                $taxAmount,
+
+            'service_charge' =>
+                $serviceCharge,
+
+            'total_amount' =>
+                $total,
+
+            'kitchen_status' =>
+                Order::KITCHEN_STATUS_PREPARING,
+        ]);
+
+        event(
+            new KitchenOrderUpdated($order)
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Load complete order
+        |--------------------------------------------------------------------------
+        */
+
+        $order->load([
+            'items.menuItem',
+            'items.modifiers.modifier',
+            'items.discounts.discount',
+            'payments.paymentMethod',
+            'discounts.discount',
+            'customer',
+            'table',
+            'cashier',
+            'location',
+            'orderType',
+            'orderSource',
+            'diningSession',
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return data from transaction, NOT JsonResponse
+        |--------------------------------------------------------------------------
+        */
+
+        return [
+            $order,
+            $createdItems,
+        ];
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | HTTP response
+    |--------------------------------------------------------------------------
+    */
+
+    return response()->json([
+        'data' => new OrderResource($order),
+        'created_items' => $createdItems,
+    ]);
+}
 
 
     // public function store(OrderRequest $request)
@@ -1158,12 +1571,6 @@ class OrderController extends Controller
         return new OrderResource($order);
     }
 
-    public function update(OrderRequest $request, Order $order)
-    {
-        return response()->json([
-            'message' => 'Not implemented'
-        ]);
-    }
 
     public function destroy(Order $order)
     {
@@ -1441,13 +1848,19 @@ class OrderController extends Controller
             |--------------------------------------------------------------------------
             */
 
-                $order->update([
+            $order->update([
+                    'kitchen_status'=>Order::KITCHEN_STATUS_READY,
+                    'completed_at'=>now(),
                     'status' => Order::STATUS_COMPLETED,
                     'order_source_id' => $validated['order_source_id'] ?? 1
-                ]);
+            ]);
+
+            event(
+                new KitchenOrderUpdated($order)
+            );
 
 
-                /*
+            /*
             |--------------------------------------------------------------------------
             | Create receipt print job
             |--------------------------------------------------------------------------
