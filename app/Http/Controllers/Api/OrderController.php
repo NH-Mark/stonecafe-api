@@ -955,19 +955,19 @@ public function update(
 
         /*
         |--------------------------------------------------------------------------
-        | Order must still be editable
+        | Editable check
         |--------------------------------------------------------------------------
         */
 
-        if (in_array($order->status, [
-            Order::STATUS_COMPLETED,
-            Order::STATUS_CANCELLED,
-        ])) {
-            abort(
-                422,
-                'Order cannot be updated because it is already closed.'
-            );
-        }
+        // if (in_array($order->status, [
+        //     Order::STATUS_COMPLETED,
+        //     Order::STATUS_CANCELLED,
+        // ])) {
+        //     abort(
+        //         422,
+        //         'Order cannot be updated because it is already closed.'
+        //     );
+        // }
 
         /*
         |--------------------------------------------------------------------------
@@ -978,7 +978,8 @@ public function update(
         if (
             $request->filled('version') &&
             $order->version !== null &&
-            (int) $request->input('version') !== (int) $order->version
+            (int) $request->input('version') !==
+                (int) $order->version
         ) {
             abort(
                 409,
@@ -988,26 +989,64 @@ public function update(
 
         /*
         |--------------------------------------------------------------------------
-        | IMPORTANT
+        | Update order information
         |--------------------------------------------------------------------------
-        | This endpoint represents the COMPLETE current order.
-        |
-        | New items should already have an order item ID because they
-        | must first be created through:
-        |
-        | POST /orders/{order}/items
-        |
-        | Therefore PUT /orders/{order} only updates existing items.
+        */
+
+        if ($request->has('order_type_id')) {
+            $order->order_type_id = $request->input('order_type_id');
+        }
+        if ($request->has('location_id')) {
+            $order->location_id = $request->input('location_id');
+        }
+
+
+        if ($request->has('order_source_id')) {
+            $order->order_source_id =
+                $request->input('order_source_id');
+        }
+
+
+        if ($request->has('customer_id')) {
+            $order->customer_id =
+                $request->input('customer_id');
+        }
+        if ($request->has('kitchen_status')) {
+            $order->kitchen_status =
+                $request->input('kitchen_status');
+        }
+         if ($request->has('payment_status')) {
+            $order->payment_status =
+                $request->input('payment_status');
+        }
+
+        if ($request->has('restaurant_table_id')) {
+            $order->table_id =
+                $request->input('restaurant_table_id');
+        }
+
+        if ($request->has('number_plate')) {
+            $order->number_plate =
+                $request->input('number_plate');
+        }
+
+        if ($request->has('dining_session_id')) {
+            $order->dining_session_id =
+                $request->input('dining_session_id');
+        }
+
+        if ($request->has('notes')) {
+            $order->notes =
+                $request->input('notes');
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Complete current items
         |--------------------------------------------------------------------------
         */
 
         $items = $request->input('items', []);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Validate that every item belongs to this order
-        |--------------------------------------------------------------------------
-        */
 
         $requestedItemIds = collect($items)
             ->pluck('id')
@@ -1017,18 +1056,15 @@ public function update(
 
         /*
         |--------------------------------------------------------------------------
-        | Reject items without IDs
-        |--------------------------------------------------------------------------
-        |
-        | A missing ID means this item has not been synchronized with the
-        | backend yet.
-        |
-        | It must be sent through addItems(), not update().
+        | Every item must already exist
         |--------------------------------------------------------------------------
         */
 
         $newItem = collect($items)
-            ->first(fn ($row) => empty($row['id']));
+            ->first(
+                fn ($row) =>
+                    empty($row['id'])
+            );
 
         if ($newItem) {
             abort(
@@ -1039,45 +1075,45 @@ public function update(
 
         /*
         |--------------------------------------------------------------------------
-        | Remove items that no longer exist in the current cart
+        | Delete removed items
         |--------------------------------------------------------------------------
-        |
-        | IMPORTANT:
-        | The request represents the COMPLETE current cart.
-        |
         */
 
         $order->items()
-            ->whereNotIn('id', $requestedItemIds)
+            ->whereNotIn(
+                'id',
+                $requestedItemIds
+            )
             ->delete();
 
         /*
         |--------------------------------------------------------------------------
-        | Update existing items
+        | Update items
         |--------------------------------------------------------------------------
         */
 
         foreach ($items as $row) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Existing item
-            |--------------------------------------------------------------------------
-            |
-            | We already rejected rows without an ID above.
-            |
-            */
-
             $item = $order->items()
                 ->lockForUpdate()
-                ->findOrFail((int) $row['id']);
+                ->findOrFail(
+                    (int) $row['id']
+                );
 
             $item->update([
-                'menu_item_id' => $row['menu_item_id'],
-                'quantity' => $row['quantity'],
-                'unit_price' => $row['unit_price'],
-                'total_price' => $row['total_price'],
-                'notes' => $row['notes'] ?? null,
+                'menu_item_id' =>
+                    $row['menu_item_id'],
+
+                'quantity' =>
+                    $row['quantity'],
+
+                'unit_price' =>
+                    $row['unit_price'],
+
+                'total_price' =>
+                    $row['total_price'],
+
+                'notes' =>
+                    $row['notes'] ?? null,
             ]);
 
             /*
@@ -1088,11 +1124,19 @@ public function update(
 
             $item->modifiers()->delete();
 
-            foreach ($row['modifiers'] ?? [] as $modifier) {
+            foreach (
+                $row['modifiers'] ?? []
+                as $modifier
+            ) {
                 $item->modifiers()->create([
-                    'modifier_id' => $modifier['modifier_id'],
-                    'quantity' => $modifier['quantity'] ?? 1,
-                    'price' => $modifier['price'],
+                    'modifier_id' =>
+                        $modifier['modifier_id'],
+
+                    'quantity' =>
+                        $modifier['quantity'] ?? 1,
+
+                    'price' =>
+                        $modifier['price'],
                 ]);
             }
 
@@ -1104,37 +1148,55 @@ public function update(
 
             $item->discounts()->delete();
 
-            foreach ($row['discounts'] ?? [] as $discount) {
+            foreach (
+                $row['discounts'] ?? []
+                as $discount
+            ) {
                 $item->discounts()->create([
-                    'discount_id' => $discount['discount_id'],
-                    'amount' => $discount['amount'],
+                    'discount_id' =>
+                        $discount['discount_id'],
+
+                    'amount' =>
+                        $discount['amount'],
                 ]);
             }
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Replace order discounts
+        | Replace order discount
         |--------------------------------------------------------------------------
+        |
+        | Only one order-level discount is allowed.
+        |
         */
 
         $order->discounts()->delete();
 
-        foreach ($request->input('discounts', []) as $discount) {
-            $order->discounts()->create([
-                'discount_id' => $discount['discount_id'],
-                'amount' => $discount['amount'],
-            ]);
+        $orderDiscounts =
+            $request->input(
+                'discounts',
+                []
+            );
+
+        if (count($orderDiscounts) > 1) {
+            abort(
+                422,
+                'Only one order discount can be applied.'
+            );
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Order notes
-        |--------------------------------------------------------------------------
-        */
+        foreach (
+            $orderDiscounts
+            as $discount
+        ) {
+            $order->discounts()->create([
+                'discount_id' =>
+                    $discount['discount_id'],
 
-        if ($request->has('notes')) {
-            $order->notes = $request->input('notes');
+                'amount' =>
+                    $discount['amount'],
+            ]);
         }
 
         /*
@@ -1146,24 +1208,43 @@ public function update(
         $subtotal = $order->items()
             ->sum('total_price');
 
-        $itemDiscount = $order->items()
-            ->with('discounts')
-            ->get()
-            ->sum(
-                fn ($item) =>
-                    $item->discounts->sum('amount')
-            );
+        $itemDiscount =
+            $order->items()
+                ->with('discounts')
+                ->get()
+                ->sum(
+                    fn ($item) =>
+                        $item->discounts
+                            ->sum('amount')
+                );
 
-        $orderDiscount = $order->discounts()
-            ->sum('amount');
+        $orderDiscount =
+            $order->discounts()
+                ->sum('amount');
 
         $discountAmount =
             $itemDiscount +
             $orderDiscount;
 
-        $taxAmount = 0;
+        /*
+        |--------------------------------------------------------------------------
+        | Preserve these if they are editable elsewhere.
+        |--------------------------------------------------------------------------
+        */
 
-        $serviceCharge = 0;
+        $taxAmount =
+            $request->has('tax_amount')
+                ? (float) $request->input(
+                    'tax_amount'
+                )
+                : (float) $order->tax_amount;
+
+        $serviceCharge =
+            $request->has('service_charge')
+                ? (float) $request->input(
+                    'service_charge'
+                )
+                : (float) $order->service_charge;
 
         $total = max(
             $subtotal -
@@ -1175,26 +1256,29 @@ public function update(
 
         /*
         |--------------------------------------------------------------------------
-        | Update order
+        | Save order totals
         |--------------------------------------------------------------------------
         */
 
         $order->update([
-            'subtotal' => $subtotal,
-            'discount_amount' => $discountAmount,
-            'tax_amount' => $taxAmount,
-            'service_charge' => $serviceCharge,
-            'total_amount' => $total,
+            'subtotal' =>
+                $subtotal,
 
-            /*
-             * Increment version after successful sync.
-             */
-            'version' => ($order->version ?? 0) + 1,
+            'discount_amount' =>
+                $discountAmount,
 
-            /*
-             * Saving the complete order means it is now being processed
-             * by the kitchen.
-             */
+            'tax_amount' =>
+                $taxAmount,
+
+            'service_charge' =>
+                $serviceCharge,
+
+            'total_amount' =>
+                $total,
+
+            'version' =>
+                ($order->version ?? 0) + 1,
+
             'kitchen_status' =>
                 Order::KITCHEN_STATUS_PREPARING,
         ]);
@@ -1235,6 +1319,307 @@ public function update(
 
     return new OrderResource($order);
 }
+
+// public function update(
+//     OrderUpdateOrderDiscountRequest $request,
+//     Order $order
+// ) {
+//     $order = DB::transaction(function () use (
+//         $request,
+//         $order
+//     ) {
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Lock order
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $order = Order::query()
+//             ->lockForUpdate()
+//             ->findOrFail($order->id);
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Order must still be editable
+//         |--------------------------------------------------------------------------
+//         */
+
+//         if (in_array($order->status, [
+//             Order::STATUS_COMPLETED,
+//             Order::STATUS_CANCELLED,
+//         ])) {
+//             abort(
+//                 422,
+//                 'Order cannot be updated because it is already closed.'
+//             );
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Optimistic locking
+//         |--------------------------------------------------------------------------
+//         */
+
+//         if (
+//             $request->filled('version') &&
+//             $order->version !== null &&
+//             (int) $request->input('version') !== (int) $order->version
+//         ) {
+//             abort(
+//                 409,
+//                 'Order has been modified by another request.'
+//             );
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | IMPORTANT
+//         |--------------------------------------------------------------------------
+//         | This endpoint represents the COMPLETE current order.
+//         |
+//         | New items should already have an order item ID because they
+//         | must first be created through:
+//         |
+//         | POST /orders/{order}/items
+//         |
+//         | Therefore PUT /orders/{order} only updates existing items.
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $items = $request->input('items', []);
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Validate that every item belongs to this order
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $requestedItemIds = collect($items)
+//             ->pluck('id')
+//             ->filter()
+//             ->map(fn ($id) => (int) $id)
+//             ->values();
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Reject items without IDs
+//         |--------------------------------------------------------------------------
+//         |
+//         | A missing ID means this item has not been synchronized with the
+//         | backend yet.
+//         |
+//         | It must be sent through addItems(), not update().
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $newItem = collect($items)
+//             ->first(fn ($row) => empty($row['id']));
+
+//         if ($newItem) {
+//             abort(
+//                 422,
+//                 'Order contains an unsaved item. Send new items before saving order changes.'
+//             );
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Remove items that no longer exist in the current cart
+//         |--------------------------------------------------------------------------
+//         |
+//         | IMPORTANT:
+//         | The request represents the COMPLETE current cart.
+//         |
+//         */
+
+//         $order->items()
+//             ->whereNotIn('id', $requestedItemIds)
+//             ->delete();
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Update existing items
+//         |--------------------------------------------------------------------------
+//         */
+
+//         foreach ($items as $row) {
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | Existing item
+//             |--------------------------------------------------------------------------
+//             |
+//             | We already rejected rows without an ID above.
+//             |
+//             */
+
+//             $item = $order->items()
+//                 ->lockForUpdate()
+//                 ->findOrFail((int) $row['id']);
+
+//             $item->update([
+//                 'menu_item_id' => $row['menu_item_id'],
+//                 'quantity' => $row['quantity'],
+//                 'unit_price' => $row['unit_price'],
+//                 'total_price' => $row['total_price'],
+//                 'notes' => $row['notes'] ?? null,
+//             ]);
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | Replace modifiers
+//             |--------------------------------------------------------------------------
+//             */
+
+//             $item->modifiers()->delete();
+
+//             foreach ($row['modifiers'] ?? [] as $modifier) {
+//                 $item->modifiers()->create([
+//                     'modifier_id' => $modifier['modifier_id'],
+//                     'quantity' => $modifier['quantity'] ?? 1,
+//                     'price' => $modifier['price'],
+//                 ]);
+//             }
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | Replace item discounts
+//             |--------------------------------------------------------------------------
+//             */
+
+//             $item->discounts()->delete();
+
+//             foreach ($row['discounts'] ?? [] as $discount) {
+//                 $item->discounts()->create([
+//                     'discount_id' => $discount['discount_id'],
+//                     'amount' => $discount['amount'],
+//                 ]);
+//             }
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Replace order discounts
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $order->discounts()->delete();
+
+//         foreach ($request->input('discounts', []) as $discount) {
+//             $order->discounts()->create([
+//                 'discount_id' => $discount['discount_id'],
+//                 'amount' => $discount['amount'],
+//             ]);
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Order notes
+//         |--------------------------------------------------------------------------
+//         */
+
+//         if ($request->has('notes')) {
+//             $order->notes = $request->input('notes');
+//         }
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Recalculate totals
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $subtotal = $order->items()
+//             ->sum('total_price');
+
+//         $itemDiscount = $order->items()
+//             ->with('discounts')
+//             ->get()
+//             ->sum(
+//                 fn ($item) =>
+//                     $item->discounts->sum('amount')
+//             );
+
+//         $orderDiscount = $order->discounts()
+//             ->sum('amount');
+
+//         $discountAmount =
+//             $itemDiscount +
+//             $orderDiscount;
+
+//         $taxAmount = 0;
+
+//         $serviceCharge = 0;
+
+//         $total = max(
+//             $subtotal -
+//             $discountAmount +
+//             $taxAmount +
+//             $serviceCharge,
+//             0
+//         );
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Update order
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $order->update([
+//             'subtotal' => $subtotal,
+//             'discount_amount' => $discountAmount,
+//             'tax_amount' => $taxAmount,
+//             'service_charge' => $serviceCharge,
+//             'total_amount' => $total,
+
+//             /*
+//              * Increment version after successful sync.
+//              */
+//             'version' => ($order->version ?? 0) + 1,
+
+//             /*
+//              * Saving the complete order means it is now being processed
+//              * by the kitchen.
+//              */
+//             'kitchen_status' =>
+//                 Order::KITCHEN_STATUS_PREPARING,
+//         ]);
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Kitchen event
+//         |--------------------------------------------------------------------------
+//         */
+
+//         event(
+//             new KitchenOrderUpdated($order)
+//         );
+
+//         /*
+//         |--------------------------------------------------------------------------
+//         | Reload complete order
+//         |--------------------------------------------------------------------------
+//         */
+
+//         $order->load([
+//             'items.menuItem',
+//             'items.modifiers.modifier',
+//             'items.discounts.discount',
+//             'payments.paymentMethod',
+//             'discounts.discount',
+//             'customer',
+//             'table',
+//             'cashier',
+//             'location',
+//             'orderType',
+//             'orderSource',
+//             'diningSession',
+//         ]);
+
+//         return $order;
+//     });
+
+//     return new OrderResource($order);
+// }
     public function addItems(
     AddOrderItemsRequest $request,
     Order $order

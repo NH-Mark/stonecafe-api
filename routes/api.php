@@ -145,7 +145,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put(
         '/orders/{order}',
         [OrderController::class, 'update']
-    );
+    )->middleware('permission:orders.update');
 
     Route::get(
         '/today-orders',

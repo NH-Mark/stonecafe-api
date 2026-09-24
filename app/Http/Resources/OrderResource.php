@@ -19,12 +19,16 @@ class OrderResource extends JsonResource
             'order_no' => $this->order_no,
             'type' => $this->orderType?->name,
             'order_type_code' => $this->orderType?->code,
+            'order_type_id' => $this->orderType?->id,
             'source' => $this->orderSource?->name,
             'customer' => $this->customer?->name,
+            'customer_id' => $this->customer?->id,
             'table' => $this->table?->name,
+            'restaurant_table_id' => $this->table?->id,
             'restaurant_table' => $this->table,
             'cashier' => $this->cashier?->name,
             'location' => $this->location?->name,
+            'location_id' => $this->location?->id,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
             'kitchen_status' => $this->kitchen_status,
@@ -41,6 +45,7 @@ class OrderResource extends JsonResource
             'items' => $this->items->map(function ($item) {
                 return [
                     'id' => $item->id,
+                    'menu_item_id' => $item->menuItem?->id,
                     'menu_item' => $item->menuItem?->name,
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
@@ -49,7 +54,9 @@ class OrderResource extends JsonResource
 
                     'discounts' => $item->discounts->map(function ($discount) {
                         return [
-                            'id' => $discount->id,
+                            'id' => $discount->discount?->id,
+                            'type' => $discount->discount?->type,
+                            'value' => $discount->discount?->value,
                             'name' => $discount->discount?->name,
                             'amount' => $discount->amount,
                         ];
@@ -57,6 +64,7 @@ class OrderResource extends JsonResource
 
                     'modifiers' => $item->modifiers->map(function ($modifier) {
                         return [
+                            'id'      => $modifier->modifier?->id,
                             'modifier' => $modifier->modifier?->name,
                             'quantity' => $modifier->quantity,
                             'price' => $modifier->price,
@@ -79,6 +87,9 @@ class OrderResource extends JsonResource
             }),
             'discounts' => $this->discounts->map(function ($discount) {
                 return [
+                    'id' => $discount->discount?->id,
+                    'type' => $discount->discount?->type,
+                    'value' => $discount->discount?->value,
                     'name' => $discount->discount?->name,
                     'amount' => $discount->amount,
                 ];
