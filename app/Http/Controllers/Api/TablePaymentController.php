@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\KitchenOrderUpdated;
 use App\Http\Controllers\Controller;
 use App\Models\DiningSession;
 use App\Models\Order;
@@ -514,12 +515,17 @@ class TablePaymentController extends Controller
             foreach ($orders as $order) {
 
                 $order->update([
+                    'kitchen_status' =>
+                         Order::KITCHEN_STATUS_READY,
                     'status' =>
                         'completed',
 
                     'payment_status'=>'paid',
                 ]);
             }
+            event(
+                new KitchenOrderUpdated($order)
+            );
 
             /*
             |--------------------------------------------------------------------------
