@@ -120,6 +120,12 @@ class StoreMenuItemRequest extends FormRequest
                 'integer',
                 'min:1'
             ],
+            'printer_id' => [
+                'nullable',
+                'integer',
+                'exists:printers,id',
+            ],
+
 
         ];
     }

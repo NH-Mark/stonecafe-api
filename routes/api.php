@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\Api\KitchenController;
 use App\Http\Controllers\Api\OrderSourceController;
+use App\Http\Controllers\Api\PrinterController;
 use App\Http\Controllers\Api\RestaurantTableController;
 use App\Http\Controllers\Api\TablePaymentController;
 use App\Http\Controllers\MenuItemModifierGroupController;
@@ -227,5 +228,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/orders/{order}/assign-table',
         [OrderController::class, 'assignTable']
     );
+
+    Route::get('/printers', [
+        PrinterController::class,
+        'index'
+    ]);
 
 });

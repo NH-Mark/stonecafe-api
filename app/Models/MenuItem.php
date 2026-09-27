@@ -24,7 +24,8 @@ class MenuItem extends Model
         'menu_item_tags',
         'modifier_groups',
         'name_ar',
-        'description_ar'
+        'description_ar',
+        'printer_id'
     ];
 
 
@@ -64,5 +65,12 @@ class MenuItem extends Model
     public function menuItemTags()
     {
         return $this->belongsToMany(MenuItemTag::class);
+    }
+
+    public function printer()
+    {
+        return $this->belongsTo(
+            Printer::class
+        );
     }
 }

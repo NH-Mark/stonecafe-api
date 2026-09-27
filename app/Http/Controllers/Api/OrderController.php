@@ -11,7 +11,7 @@ use App\Http\Requests\Order\UpdateOrderDiscountRequest as OrderUpdateOrderDiscou
 use App\Http\Resources\OrderResource;
 use App\Models\DiningSession;
 use App\Models\Order;
-use App\Models\PaymentMethod;
+use App\Services\PrintJobService;
 use App\Models\PrintJob;
 use App\Models\RestaurantTable;
 use Carbon\Carbon;
@@ -23,6 +23,12 @@ use Illuminate\Validation\Rule;
 
 class OrderController extends Controller
 {
+
+    public function __construct(
+        protected PrintJobService $printJobService
+    ) {
+    }
+
 
     public function index(Request $request)
     {
@@ -447,21 +453,6 @@ class OrderController extends Controller
                     );
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Order Type
-            |--------------------------------------------------------------------------
-            |
-            | Dining session:
-            |     dine_in
-            |
-            | No session:
-            |     use frontend order_type_id
-            |     or your takeaway default.
-            |
-            */
-
             $orderTypeId = $request->order_type;
 
 
@@ -549,50 +540,19 @@ class OrderController extends Controller
                 'table_id' =>
                 $tableId,
 
-                /*
-                * IMPORTANT:
-                *
-                * Store the dining session if your
-                * orders table has this column.
-                */
                 'dining_session_id' =>
                 $diningSession?->id,
 
                 'cashier_id' =>
                 Auth::id(),
 
-                /*
-                |--------------------------------------------------------------------------
-                | Order lifecycle
-                |--------------------------------------------------------------------------
-                */
-
                 'status' =>
                 Order::STATUS_CONFIRMED,
-
-                /*
-                |--------------------------------------------------------------------------
-                | Kitchen lifecycle
-                |--------------------------------------------------------------------------
-                */
 
                 'kitchen_status' =>
                 Order::KITCHEN_STATUS_PREPARING,
 
-                /*
-                |--------------------------------------------------------------------------
-                | Payment lifecycle
-                |--------------------------------------------------------------------------
-                */
-
-                'payment_status' =>
-                'unpaid',
-
-                /*
-                |--------------------------------------------------------------------------
-                | Amounts
-                |--------------------------------------------------------------------------
-                */
+                'payment_status' => 'unpaid',
 
                 'subtotal' =>
                 $request->subtotal,
@@ -735,37 +695,18 @@ class OrderController extends Controller
 
                 'orderSource',
 
-                /*
-                * Include session if relationship exists.
-                */
                 'diningSession',
 
             ]);
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | Kitchen event
-            |--------------------------------------------------------------------------
-            |
-            | At this point:
-            |
-            | Order:
-            |     CONFIRMED
-            |
-            | Kitchen:
-            |     PENDING
-            |
-            | Payment:
-            |     UNPAID
-            |
-            */
 
             event(
                 new KitchenOrderCreated(
                     $order
                 )
             );
+
+            $this->printJobService->createKotJobs($order);
 
 
             return $order;
@@ -1851,7 +1792,7 @@ class OrderController extends Controller
         | Add items
         |--------------------------------------------------------------------------
         */
-
+            $createdOrderItems = new \Illuminate\Database\Eloquent\Collection();
             $createdItems = [];
 
             foreach ($request->items as $row) {
@@ -1919,6 +1860,7 @@ class OrderController extends Controller
             | Keep client line_id -> database item id mapping
             |--------------------------------------------------------------------------
             */
+               $createdOrderItems->push($item);
 
                 $createdItems[] = [
                     'id' => $item->id,
@@ -1990,7 +1932,10 @@ class OrderController extends Controller
             event(
                 new KitchenOrderUpdated($order)
             );
-
+            $this->printJobService->createKotJobs(
+                $order,
+                $createdOrderItems
+            );
             /*
         |--------------------------------------------------------------------------
         | Load complete order
@@ -2599,6 +2544,7 @@ class OrderController extends Controller
             event(
                 new KitchenOrderCreated($order->fresh())
             );
+            $this->printJobService->createKotJobs($order);
         }
 
         return response()->json([
@@ -2617,6 +2563,8 @@ class OrderController extends Controller
                 'message' => 'Order must be completed and fully paid before printing.',
             ], 422);
         }
+
+        $this->printJobService->createKotJobs($order);
 
         PrintJob::create([
             'order_id' => $order->id,

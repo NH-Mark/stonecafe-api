@@ -32,6 +32,7 @@ class MenuItemService
             'modifierGroups',
             'foodSymbols',
             'menuItemTags',
+            'printer',
         ]);
     }
 
@@ -63,6 +64,7 @@ class MenuItemService
             'modifierGroups',
             'foodSymbols',
             'menuItemTags',
+              'printer',
         ]);
     }
 

@@ -41,4 +41,11 @@ class PrintJob extends Model
             DiningSession::class
         );
     }
+
+    public function items()
+    {
+        return $this->hasMany(
+            PrintJobItem::class
+        );
+    }
 }

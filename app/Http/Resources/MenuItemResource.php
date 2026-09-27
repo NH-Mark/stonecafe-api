@@ -61,6 +61,8 @@ class MenuItemResource extends JsonResource
             'menu_item_tags' => MenuItemTagResource::collection(
                 $this->whenLoaded('menuItemTags')
             ),
+            'printer_id' => $this->printer?->id,
+            'printer' => $this->printer,
 
         ];
     }
