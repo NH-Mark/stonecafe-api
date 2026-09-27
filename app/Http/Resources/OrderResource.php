@@ -77,6 +77,7 @@ class OrderResource extends JsonResource
                 return [
                     'id' => $payment->id,
                     'method' => $payment->paymentMethod?->name,
+                    'payment_method_id' => $payment->paymentMethod?->id,
                     'amount' => $payment->amount,
                     'reference' => $payment->reference,
                     'received_by' => $payment->receivedBy?->name,
