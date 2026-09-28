@@ -234,4 +234,9 @@ Route::middleware('auth:sanctum')->group(function () {
         'index'
     ]);
 
+    Route::get(
+        'orders/{order}/history',
+        [OrderController::class, 'history']
+    )->name('orders.history');
+
 });

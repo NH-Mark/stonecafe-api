@@ -134,4 +134,9 @@ class Order extends Model
             DiningSession::class
         );
     }
+
+    public function histories()
+    {
+        return $this->hasMany(OrderHistory::class);
+    }
 }

@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Services\PrintJobService;
 use App\Models\PrintJob;
 use App\Models\RestaurantTable;
+use App\Services\OrderHistoryService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,8 @@ class OrderController extends Controller
 {
 
     public function __construct(
-        protected PrintJobService $printJobService
+        protected PrintJobService $printJobService,
+        protected OrderHistoryService $orderHistoryService
     ) {
     }
 
@@ -666,6 +668,12 @@ class OrderController extends Controller
                 ]);
             }
 
+            $this->orderHistoryService->log(
+                $order,
+                'order_created',
+                'Order created'
+            );
+
 
             /*
             |--------------------------------------------------------------------------
@@ -885,36 +893,17 @@ class OrderController extends Controller
             $order
         ) {
             /*
-        |--------------------------------------------------------------------------
-        | Lock order
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Lock order
+            |--------------------------------------------------------------------------
+            */
 
             $order = Order::query()
                 ->lockForUpdate()
                 ->findOrFail($order->id);
 
-            /*
-        |--------------------------------------------------------------------------
-        | Editable check
-        |--------------------------------------------------------------------------
-        */
+          
 
-            // if (in_array($order->status, [
-            //     Order::STATUS_COMPLETED,
-            //     Order::STATUS_CANCELLED,
-            // ])) {
-            //     abort(
-            //         422,
-            //         'Order cannot be updated because it is already closed.'
-            //     );
-            // }
-
-            /*
-        |--------------------------------------------------------------------------
-        | Optimistic locking
-        |--------------------------------------------------------------------------
-        */
 
             if (
                 $request->filled('version') &&
@@ -928,11 +917,24 @@ class OrderController extends Controller
                 );
             }
 
-            /*
-        |--------------------------------------------------------------------------
-        | Update order information
-        |--------------------------------------------------------------------------
-        */
+            $oldOrderValues = [
+                'order_type_id' => $order->order_type_id,
+                'location_id' => $order->location_id,
+                'order_source_id' => $order->order_source_id,
+                'customer_id' => $order->customer_id,
+                'kitchen_status' => $order->kitchen_status,
+                'payment_status' => $order->payment_status,
+                'table_id' => $order->table_id,
+                'number_plate' => $order->number_plate,
+                'dining_session_id' => $order->dining_session_id,
+                'notes' => $order->notes,
+                'subtotal' => $order->subtotal,
+                'discount_amount' => $order->discount_amount,
+                'tax_amount' => $order->tax_amount,
+                'service_charge' => $order->service_charge,
+                'total_amount' => $order->total_amount,
+            ];
+
 
             if ($request->has('order_type_id')) {
                 $order->order_type_id =
@@ -984,11 +986,15 @@ class OrderController extends Controller
                     $request->input('notes');
             }
 
+            $newOrderValues = [ 'order_type_id' => $order->order_type_id, 'location_id' => $order->location_id, 'order_source_id' => $order->order_source_id, 'customer_id' => $order->customer_id, 'kitchen_status' => $order->kitchen_status, 'payment_status' => $order->payment_status, 'table_id' => $order->table_id, 'number_plate' => $order->number_plate, 'dining_session_id' => $order->dining_session_id, 'notes' => $order->notes, ];
+            if ($oldOrderValues != $newOrderValues) { 
+                $this->orderHistoryService->log( $order, 'order_updated', 'Order details changed', $oldOrderValues, $newOrderValues ); 
+            }
             /*
-        |--------------------------------------------------------------------------
-        | Complete current items
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Complete current items
+            |--------------------------------------------------------------------------
+            */
 
             $items = $request->input('items', []);
 
@@ -998,11 +1004,6 @@ class OrderController extends Controller
                 ->map(fn($id) => (int) $id)
                 ->values();
 
-            /*
-        |--------------------------------------------------------------------------
-        | Every item must already exist
-        |--------------------------------------------------------------------------
-        */
 
             $newItem = collect($items)
                 ->first(
@@ -1015,26 +1016,34 @@ class OrderController extends Controller
                     422,
                     'Order contains an unsaved item. Send new items before saving order changes.'
                 );
+            }      
+
+            $removedItems = $order->items()
+                ->with('menuItem')
+                ->whereNotIn('id', $requestedItemIds)
+                ->get();
+
+            foreach ($removedItems as $removedItem) {
+                $this->orderHistoryService->log(
+                    $order,
+                    'item_removed',
+                    "Removed {$removedItem->menuItem?->name}",
+                    [
+                        'order_item_id' => $removedItem->id,
+                        'menu_item_id' => $removedItem->menu_item_id,
+                        'quantity' => $removedItem->quantity,
+                        'unit_price' => $removedItem->unit_price,
+                        'total_price' => $removedItem->total_price,
+                    ],
+                    null,
+                    $request->input('reason')
+                );
             }
 
-            /*
-        |--------------------------------------------------------------------------
-        | Delete removed items
-        |--------------------------------------------------------------------------
-        */
-
             $order->items()
-                ->whereNotIn(
-                    'id',
-                    $requestedItemIds
-                )
+                ->whereNotIn('id', $requestedItemIds)
                 ->delete();
 
-            /*
-        |--------------------------------------------------------------------------
-        | Update items
-        |--------------------------------------------------------------------------
-        */
 
             foreach ($items as $row) {
                 $item = $order->items()
@@ -1043,6 +1052,25 @@ class OrderController extends Controller
                         (int) $row['id']
                     );
 
+                $oldItemValues = [
+                    'menu_item_id' => $item->menu_item_id,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'total_price' => $item->total_price,
+                    'notes' => $item->notes,
+                ];
+
+                $oldModifiers = $item->modifiers()->get()->map(fn ($modifier) => 
+                    [ 'modifier_id' => $modifier->modifier_id,
+                    'quantity' => $modifier->quantity,
+                    'price' => $modifier->price, ]
+                    )->values()->all();
+
+                $oldItemDiscounts = $item->discounts()->get()->map(fn ($discount) => [
+                    'discount_id' => $discount->discount_id,
+                    'amount' => $discount->amount,
+                ])->values()->all();    
+                
                 $item->update([
                     'menu_item_id' =>
                     $row['menu_item_id'],
@@ -1060,13 +1088,28 @@ class OrderController extends Controller
                     $row['notes'] ?? null,
                 ]);
 
-                /*
-            |--------------------------------------------------------------------------
-            | Replace modifiers
-            |--------------------------------------------------------------------------
-            */
+                $newItemValues = [
+                    'menu_item_id' => $item->menu_item_id,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'total_price' => $item->total_price,
+                    'notes' => $item->notes,
+                ];
+
+                if ($oldItemValues != $newItemValues) {
+                    $this->orderHistoryService->log(
+                        $order,
+                        'item_updated',
+                        "Order item #{$item->id} updated",
+                        $oldItemValues,
+                        $newItemValues
+                    );
+                }
+
 
                 $item->modifiers()->delete();
+
+                
 
                 foreach (
                     $row['modifiers'] ?? []
@@ -1084,12 +1127,10 @@ class OrderController extends Controller
                     ]);
                 }
 
-                /*
-            |--------------------------------------------------------------------------
-            | Replace item discounts
-            |--------------------------------------------------------------------------
-            */
-
+                $newModifiers = $item->modifiers() ->get() ->map(fn ($modifier) => [ 'modifier_id' => $modifier->modifier_id, 'quantity' => $modifier->quantity, 'price' => $modifier->price, ]) ->values() ->all();
+                if ($oldModifiers != $newModifiers) { 
+                    $this->orderHistoryService->log( $order, 'item_modifiers_changed', "Modifiers changed for order item #{$item->id}", [ 'modifiers' => $oldModifiers, ], [ 'modifiers' => $newModifiers, ] ); 
+                }
                 $item->discounts()->delete();
 
                 foreach (
@@ -1104,16 +1145,24 @@ class OrderController extends Controller
                         $discount['amount'],
                     ]);
                 }
+
+                $newItemDiscounts = $item->discounts() ->get() ->map(fn ($discount) => [ 'discount_id' => $discount->discount_id, 'amount' => $discount->amount, ]) ->values() ->all(); 
+                /* |-------------------------------------------------------------------------- | Log item discount changes |-------------------------------------------------------------------------- */ 
+                if ($oldItemDiscounts != $newItemDiscounts) { 
+                    $this->orderHistoryService->log( $order, 'item_discount_changed', "Discount changed for order item #{$item->id}", [ 'discounts' => $oldItemDiscounts, ], [ 'discounts' => $newItemDiscounts, ] ); 
+                }
+                
             }
 
-            /*
-        |--------------------------------------------------------------------------
-        | Replace order discount
-        |--------------------------------------------------------------------------
-        |
-        | Only one order-level discount is allowed.
-        |
-        */
+            $oldOrderDiscounts = $order->discounts()
+            ->get()
+            ->map(fn ($discount) => [
+                'discount_id' => $discount->discount_id,
+                'amount' => $discount->amount,
+            ])
+            ->values()
+            ->all();
+
 
             $order->discounts()->delete();
 
@@ -1143,11 +1192,37 @@ class OrderController extends Controller
                 ]);
             }
 
-            /*
-        |--------------------------------------------------------------------------
-        | Recalculate totals
-        |--------------------------------------------------------------------------
-        */
+            $newOrderDiscounts = $order->discounts()
+            ->get()
+            ->map(fn ($discount) => [
+                'discount_id' => $discount->discount_id,
+                'amount' => $discount->amount,
+            ])
+            ->values()
+            ->all();
+
+            if ($oldOrderDiscounts != $newOrderDiscounts) {
+                $this->orderHistoryService->log(
+                    $order,
+                    'order_discount_changed',
+                    'Order discount changed',
+                    [
+                        'discounts' => $oldOrderDiscounts,
+                    ],
+                    [
+                        'discounts' => $newOrderDiscounts,
+                    ],
+                    $request->input('reason')
+                );
+            }
+            
+            $oldTotals = [
+                'subtotal' => $order->subtotal,
+                'discount_amount' => $order->discount_amount,
+                'tax_amount' => $order->tax_amount,
+                'service_charge' => $order->service_charge,
+                'total_amount' => $order->total_amount,
+            ];
 
             $subtotal = $order->items()
                 ->sum('total_price');
@@ -1169,12 +1244,6 @@ class OrderController extends Controller
             $discountAmount =
                 $itemDiscount +
                 $orderDiscount;
-
-            /*
-        |--------------------------------------------------------------------------
-        | Preserve tax and service charge
-        |--------------------------------------------------------------------------
-        */
 
             $taxAmount =
                 $request->has('tax_amount')
@@ -1198,16 +1267,6 @@ class OrderController extends Controller
                 0
             );
 
-            /*
-        |--------------------------------------------------------------------------
-        | Save order totals
-        |--------------------------------------------------------------------------
-        |
-        | Do NOT force kitchen_status to "preparing" here.
-        | The value set above from the request should be preserved.
-        |
-        */
-
             $order->update([
                 'subtotal' =>
                 $subtotal,
@@ -1227,21 +1286,35 @@ class OrderController extends Controller
                 'version' => ($order->version ?? 0) + 1,
             ]);
 
-            /*
-|--------------------------------------------------------------------------
-| Payments
-|--------------------------------------------------------------------------
-|
-| Frontend sends:
-| - id                  Existing payment only
-| - payment_method_id
-| - amount
-| - reference
-| - paid_at
-|
-| New payments have no id.
-|
-*/
+            $newTotals = [
+                'subtotal' => $subtotal,
+                'discount_amount' => $discountAmount,
+                'tax_amount' => $taxAmount,
+                'service_charge' => $serviceCharge,
+                'total_amount' => $total,
+            ];
+
+            if ($oldTotals != $newTotals) {
+                $this->orderHistoryService->log(
+                    $order,
+                    'order_totals_changed',
+                    'Order totals changed',
+                    $oldTotals,
+                    $newTotals
+                );
+            }
+
+            $oldPayments = $order->payments()
+            ->get()
+            ->map(fn ($payment) => [
+                'id' => $payment->id,
+                'payment_method_id' => $payment->payment_method_id,
+                'amount' => $payment->amount,
+                'reference' => $payment->reference,
+                'paid_at' => $payment->paid_at,
+            ])
+            ->values()
+            ->all();
 
             $payments = $request->input(
                 'payments',
@@ -1249,10 +1322,10 @@ class OrderController extends Controller
             );
 
             /*
-|--------------------------------------------------------------------------
-| Validate total payment amount
-|--------------------------------------------------------------------------
-*/
+            |--------------------------------------------------------------------------
+            | Validate total payment amount
+            |--------------------------------------------------------------------------
+            */
 
             $paymentTotal = collect($payments)
                 ->sum(
@@ -1272,10 +1345,10 @@ class OrderController extends Controller
             }
 
             /*
-|--------------------------------------------------------------------------
-| Validate payment methods
-|--------------------------------------------------------------------------
-*/
+            |--------------------------------------------------------------------------
+            | Validate payment methods
+            |--------------------------------------------------------------------------
+            */
 
             foreach ($payments as $payment) {
                 $paymentMethodId =
@@ -1300,10 +1373,10 @@ class OrderController extends Controller
             }
 
             /*
-|--------------------------------------------------------------------------
-| Existing payment IDs sent by frontend
-|--------------------------------------------------------------------------
-*/
+            |--------------------------------------------------------------------------
+            | Existing payment IDs sent by frontend
+            |--------------------------------------------------------------------------
+            */
 
             $existingPaymentIds = collect($payments)
                 ->pluck('id')
@@ -1312,10 +1385,10 @@ class OrderController extends Controller
                 ->values();
 
             /*
-|--------------------------------------------------------------------------
-| Make sure existing payment IDs belong to this order
-|--------------------------------------------------------------------------
-*/
+            |--------------------------------------------------------------------------
+            | Make sure existing payment IDs belong to this order
+            |--------------------------------------------------------------------------
+            */
 
             $orderPaymentIds = $order->payments()
                 ->pluck('id')
@@ -1332,14 +1405,14 @@ class OrderController extends Controller
             }
 
             /*
-|--------------------------------------------------------------------------
-| Delete payments removed from the frontend
-|--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| Do this BEFORE creating new payments.
-|
-*/
+            |--------------------------------------------------------------------------
+            | Delete payments removed from the frontend
+            |--------------------------------------------------------------------------
+            |
+            | IMPORTANT:
+            | Do this BEFORE creating new payments.
+            |
+            */
 
             if ($existingPaymentIds->isEmpty()) {
                 $order->payments()->delete();
@@ -1353,10 +1426,10 @@ class OrderController extends Controller
             }
 
             /*
-|--------------------------------------------------------------------------
-| Update existing payments / create new payments
-|--------------------------------------------------------------------------
-*/
+            |--------------------------------------------------------------------------
+            | Update existing payments / create new payments
+            |--------------------------------------------------------------------------
+            */
 
             foreach ($payments as $payment) {
                 $paymentId =
@@ -1371,10 +1444,10 @@ class OrderController extends Controller
                     (float) $payment['amount'];
 
                 /*
-    |--------------------------------------------------------------------------
-    | Existing payment
-    |--------------------------------------------------------------------------
-    */
+                |--------------------------------------------------------------------------
+                | Existing payment
+                |--------------------------------------------------------------------------
+                */
 
                 if ($paymentId) {
                     $existingPayment =
@@ -1400,10 +1473,10 @@ class OrderController extends Controller
                 }
 
                 /*
-    |--------------------------------------------------------------------------
-    | New payment
-    |--------------------------------------------------------------------------
-    */
+                |--------------------------------------------------------------------------
+                | New payment
+                |--------------------------------------------------------------------------
+                */
 
                 $order->payments()->create([
                     'payment_method_id' =>
@@ -1419,24 +1492,49 @@ class OrderController extends Controller
                     $payment['paid_at'] ?? now(),
                 ]);
             }
+            
+            $newPayments = $order->payments()
+                ->get()
+                ->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'payment_method_id' => $payment->payment_method_id,
+                    'amount' => $payment->amount,
+                    'reference' => $payment->reference,
+                    'paid_at' => $payment->paid_at,
+                ])
+                ->values()
+                ->all();
 
+            if ($oldPayments != $newPayments) {
+                $this->orderHistoryService->log(
+                    $order,
+                    'payments_changed',
+                    'Order payments changed',
+                    [
+                        'payments' => $oldPayments,
+                    ],
+                    [
+                        'payments' => $newPayments,
+                    ]
+                );
+            }
 
 
             /*
-        |--------------------------------------------------------------------------
-        | Kitchen event
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Kitchen event
+            |--------------------------------------------------------------------------
+            */
 
             event(
                 new KitchenOrderUpdated($order)
             );
 
             /*
-        |--------------------------------------------------------------------------
-        | Reload complete order
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Reload complete order
+            |--------------------------------------------------------------------------
+            */
 
             $order->load([
                 'items.menuItem',
@@ -1459,306 +1557,7 @@ class OrderController extends Controller
         return new OrderResource($order);
     }
 
-    // public function update(
-    //     OrderUpdateOrderDiscountRequest $request,
-    //     Order $order
-    // ) {
-    //     $order = DB::transaction(function () use (
-    //         $request,
-    //         $order
-    //     ) {
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Lock order
-    //         |--------------------------------------------------------------------------
-    //         */
 
-    //         $order = Order::query()
-    //             ->lockForUpdate()
-    //             ->findOrFail($order->id);
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Order must still be editable
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         if (in_array($order->status, [
-    //             Order::STATUS_COMPLETED,
-    //             Order::STATUS_CANCELLED,
-    //         ])) {
-    //             abort(
-    //                 422,
-    //                 'Order cannot be updated because it is already closed.'
-    //             );
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Optimistic locking
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         if (
-    //             $request->filled('version') &&
-    //             $order->version !== null &&
-    //             (int) $request->input('version') !== (int) $order->version
-    //         ) {
-    //             abort(
-    //                 409,
-    //                 'Order has been modified by another request.'
-    //             );
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | IMPORTANT
-    //         |--------------------------------------------------------------------------
-    //         | This endpoint represents the COMPLETE current order.
-    //         |
-    //         | New items should already have an order item ID because they
-    //         | must first be created through:
-    //         |
-    //         | POST /orders/{order}/items
-    //         |
-    //         | Therefore PUT /orders/{order} only updates existing items.
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $items = $request->input('items', []);
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Validate that every item belongs to this order
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $requestedItemIds = collect($items)
-    //             ->pluck('id')
-    //             ->filter()
-    //             ->map(fn ($id) => (int) $id)
-    //             ->values();
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Reject items without IDs
-    //         |--------------------------------------------------------------------------
-    //         |
-    //         | A missing ID means this item has not been synchronized with the
-    //         | backend yet.
-    //         |
-    //         | It must be sent through addItems(), not update().
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $newItem = collect($items)
-    //             ->first(fn ($row) => empty($row['id']));
-
-    //         if ($newItem) {
-    //             abort(
-    //                 422,
-    //                 'Order contains an unsaved item. Send new items before saving order changes.'
-    //             );
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Remove items that no longer exist in the current cart
-    //         |--------------------------------------------------------------------------
-    //         |
-    //         | IMPORTANT:
-    //         | The request represents the COMPLETE current cart.
-    //         |
-    //         */
-
-    //         $order->items()
-    //             ->whereNotIn('id', $requestedItemIds)
-    //             ->delete();
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Update existing items
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         foreach ($items as $row) {
-
-    //             /*
-    //             |--------------------------------------------------------------------------
-    //             | Existing item
-    //             |--------------------------------------------------------------------------
-    //             |
-    //             | We already rejected rows without an ID above.
-    //             |
-    //             */
-
-    //             $item = $order->items()
-    //                 ->lockForUpdate()
-    //                 ->findOrFail((int) $row['id']);
-
-    //             $item->update([
-    //                 'menu_item_id' => $row['menu_item_id'],
-    //                 'quantity' => $row['quantity'],
-    //                 'unit_price' => $row['unit_price'],
-    //                 'total_price' => $row['total_price'],
-    //                 'notes' => $row['notes'] ?? null,
-    //             ]);
-
-    //             /*
-    //             |--------------------------------------------------------------------------
-    //             | Replace modifiers
-    //             |--------------------------------------------------------------------------
-    //             */
-
-    //             $item->modifiers()->delete();
-
-    //             foreach ($row['modifiers'] ?? [] as $modifier) {
-    //                 $item->modifiers()->create([
-    //                     'modifier_id' => $modifier['modifier_id'],
-    //                     'quantity' => $modifier['quantity'] ?? 1,
-    //                     'price' => $modifier['price'],
-    //                 ]);
-    //             }
-
-    //             /*
-    //             |--------------------------------------------------------------------------
-    //             | Replace item discounts
-    //             |--------------------------------------------------------------------------
-    //             */
-
-    //             $item->discounts()->delete();
-
-    //             foreach ($row['discounts'] ?? [] as $discount) {
-    //                 $item->discounts()->create([
-    //                     'discount_id' => $discount['discount_id'],
-    //                     'amount' => $discount['amount'],
-    //                 ]);
-    //             }
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Replace order discounts
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $order->discounts()->delete();
-
-    //         foreach ($request->input('discounts', []) as $discount) {
-    //             $order->discounts()->create([
-    //                 'discount_id' => $discount['discount_id'],
-    //                 'amount' => $discount['amount'],
-    //             ]);
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Order notes
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         if ($request->has('notes')) {
-    //             $order->notes = $request->input('notes');
-    //         }
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Recalculate totals
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $subtotal = $order->items()
-    //             ->sum('total_price');
-
-    //         $itemDiscount = $order->items()
-    //             ->with('discounts')
-    //             ->get()
-    //             ->sum(
-    //                 fn ($item) =>
-    //                     $item->discounts->sum('amount')
-    //             );
-
-    //         $orderDiscount = $order->discounts()
-    //             ->sum('amount');
-
-    //         $discountAmount =
-    //             $itemDiscount +
-    //             $orderDiscount;
-
-    //         $taxAmount = 0;
-
-    //         $serviceCharge = 0;
-
-    //         $total = max(
-    //             $subtotal -
-    //             $discountAmount +
-    //             $taxAmount +
-    //             $serviceCharge,
-    //             0
-    //         );
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Update order
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $order->update([
-    //             'subtotal' => $subtotal,
-    //             'discount_amount' => $discountAmount,
-    //             'tax_amount' => $taxAmount,
-    //             'service_charge' => $serviceCharge,
-    //             'total_amount' => $total,
-
-    //             /*
-    //              * Increment version after successful sync.
-    //              */
-    //             'version' => ($order->version ?? 0) + 1,
-
-    //             /*
-    //              * Saving the complete order means it is now being processed
-    //              * by the kitchen.
-    //              */
-    //             'kitchen_status' =>
-    //                 Order::KITCHEN_STATUS_PREPARING,
-    //         ]);
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Kitchen event
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         event(
-    //             new KitchenOrderUpdated($order)
-    //         );
-
-    //         /*
-    //         |--------------------------------------------------------------------------
-    //         | Reload complete order
-    //         |--------------------------------------------------------------------------
-    //         */
-
-    //         $order->load([
-    //             'items.menuItem',
-    //             'items.modifiers.modifier',
-    //             'items.discounts.discount',
-    //             'payments.paymentMethod',
-    //             'discounts.discount',
-    //             'customer',
-    //             'table',
-    //             'cashier',
-    //             'location',
-    //             'orderType',
-    //             'orderSource',
-    //             'diningSession',
-    //         ]);
-
-    //         return $order;
-    //     });
-
-    //     return new OrderResource($order);
-    // }
     public function addItems(
         AddOrderItemsRequest $request,
         Order $order
@@ -1866,6 +1665,22 @@ class OrderController extends Controller
                     'id' => $item->id,
                     'line_id' => $row['line_id'] ?? null,
                 ];
+            }
+
+            foreach ($createdOrderItems as $item) {
+                $this->orderHistoryService->log(
+                    $order,
+                    'item_added',
+                    "Added {$item->menuItem?->name}",
+                    null,
+                    [
+                        'order_item_id' => $item->id,
+                        'menu_item_id' => $item->menu_item_id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'total_price' => $item->total_price,
+                    ]
+                );
             }
 
             /*
@@ -2825,5 +2640,15 @@ class OrderController extends Controller
         return new OrderResource(
             $result
         );
+    }
+
+    public function history(Order $order)
+    {
+        $history = $order->histories()
+            ->with('user:id,name')
+            ->latest()
+            ->paginate(50);
+            
+        return response()->json($history);
     }
 }
