@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\Customer\PaymentController;
 use App\Http\Controllers\Api\DailySalesEmailController;
 use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
@@ -26,6 +25,7 @@ use App\Http\Controllers\Api\KitchenController;
 use App\Http\Controllers\Api\OrderSourceController;
 use App\Http\Controllers\Api\PrinterController;
 use App\Http\Controllers\Api\RestaurantTableController;
+use App\Http\Controllers\Api\SapaadImportController;
 use App\Http\Controllers\Api\TablePaymentController;
 use App\Http\Controllers\MenuItemModifierGroupController;
 use Illuminate\Support\Facades\Route;
@@ -238,5 +238,24 @@ Route::middleware('auth:sanctum')->group(function () {
         'orders/{order}/history',
         [OrderController::class, 'history']
     )->name('orders.history');
+
+
+    Route::prefix('imports')
+    ->group(function () {
+        Route::post(
+            '/sapaad',
+            [SapaadImportController::class, 'store']
+        );
+
+        Route::get(
+            '/{historicalImport}/validation',
+            [SapaadImportController::class, 'validation']
+        );
+
+        Route::post(
+            '/{historicalImport}/execute',
+            [SapaadImportController::class, 'execute']
+        );
+    });
 
 });

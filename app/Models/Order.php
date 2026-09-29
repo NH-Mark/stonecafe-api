@@ -46,7 +46,9 @@ class Order extends Model
         'kitchen_status',
         'completed_at',
         'dining_session_id',
-        'number_plate'
+        'number_plate',
+        'external_id',
+        'external_source'
     ];
 
     protected $casts = [
@@ -138,5 +140,12 @@ class Order extends Model
     public function histories()
     {
         return $this->hasMany(OrderHistory::class);
+    }
+
+    public function historicalImportRows()
+    {
+        return $this->hasMany(
+            HistoricalImportRow::class
+        );
     }
 }

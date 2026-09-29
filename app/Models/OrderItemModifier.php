@@ -9,7 +9,7 @@ class OrderItemModifier extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['order_item_id ','modifier_id','quantity','price'];
+    protected $fillable = ['order_item_id','modifier_id','quantity','price'];
 
 
 
