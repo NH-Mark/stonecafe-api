@@ -268,22 +268,42 @@ class SapaadImportValidator
                 }
 
                 /*
-             * =============================================
-             * ITEM DISCOUNT
-             * =============================================
-             *
-             * Sapaad gives us the discount NAME.
-             *
-             * Example:
-             *
-             * Loopy Loyality
-             *
-             * Find the local Discount record and calculate
-             * the amount based on its type/value.
-             */
+ * =============================================
+ * ITEM AMOUNT
+ * =============================================
+ *
+ * Item amount includes:
+ *
+ * menu item price
+ * + modifier prices
+ */
+
+                $itemAmount = round(
+                    $item['price'] * $item['quantity'],
+                    2
+                );
+
+                foreach ($mappedModifiers as $modifier) {
+                    $itemAmount +=
+                        $modifier['price']
+                        * $modifier['quantity'];
+                }
+
+                $itemAmount = round(
+                    $itemAmount,
+                    2
+                );
+
+                /*
+ * =============================================
+ * ITEM DISCOUNT
+ * =============================================
+ *
+ * Sapaad discount applies to the entire item
+ * amount, including modifiers.
+ */
 
                 $discount = null;
-
                 $discountAmount = 0;
 
                 if (!empty($item['discount'])) {
@@ -299,29 +319,28 @@ class SapaadImportValidator
                             "Discount '{$item['discount']}' was not found.",
                         ];
                     } else {
-                        $itemSubtotal =
-                            $item['price']
-                            * $item['quantity'];
-
                         $discountAmount =
                             $this->calculateDiscountAmount(
                                 $discount,
-                                $itemSubtotal
+                                $itemAmount
                             );
                     }
                 }
 
                 /*
-             * =============================================
-             * ITEM TOTAL
-             * =============================================
-             */
+ * =============================================
+ * ITEM TOTAL
+ * =============================================
+ *
+ * Full item amount
+ * - item discount
+ */
 
                 $itemTotal = round(
-                    $item['price']
-                        * $item['quantity'],
+                    $itemAmount - $discountAmount,
                     2
                 );
+
 
                 /*
              * =============================================
@@ -362,42 +381,26 @@ class SapaadImportValidator
                 ];
             }
 
-            /*
-         * =================================================
-         * SUBTOTAL BEFORE ORDER DISCOUNT
-         * =================================================
-         *
-         * Item total
-         * - item discount
-         * + modifiers
-         */
+
+            $subtotalBeforeOrderDiscount = 0;
+
+                        /*
+            * =================================================
+            * SUBTOTAL AFTER ITEM DISCOUNTS
+            * =================================================
+            *
+            * Each item total already contains:
+            *
+            * menu item
+            * + modifiers
+            * - item discount
+            */
 
             $subtotalBeforeOrderDiscount = 0;
 
             foreach ($mappedItems as $item) {
-                /*
-             * Item subtotal.
-             */
-
                 $subtotalBeforeOrderDiscount +=
                     $item['total_price'];
-
-                /*
-             * Item-level discount.
-             */
-
-                $subtotalBeforeOrderDiscount -=
-                    $item['discount_amount'];
-
-                /*
-             * Modifiers.
-             */
-
-                foreach ($item['modifiers'] as $modifier) {
-                    $subtotalBeforeOrderDiscount +=
-                        $modifier['price']
-                        * $modifier['quantity'];
-                }
             }
 
             $subtotalBeforeOrderDiscount = round(
@@ -418,21 +421,21 @@ class SapaadImportValidator
             );
 
             /*
- * =================================================
- * ORDER DISCOUNT
- * =================================================
- *
- * At this point:
- *
- * subtotalBeforeOrderDiscount
- * =
- * item totals
- * - item discounts
- * + modifiers
- *
- * If this already matches the Sapaad total,
- * there is NO order-level discount.
- */
+            * =================================================
+            * ORDER DISCOUNT
+            * =================================================
+            *
+            * At this point:
+            *
+            * subtotalBeforeOrderDiscount
+            * =
+            * item totals
+            * - item discounts
+            * + modifiers
+            *
+            * If this already matches the Sapaad total,
+            * there is NO order-level discount.
+            */
 
             $orderDiscountAmount = 0;
             $orderDiscount = null;
