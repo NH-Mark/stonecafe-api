@@ -418,55 +418,49 @@ class SapaadImportValidator
             );
 
             /*
-         * =================================================
-         * ORDER DISCOUNT
-         * =================================================
-         *
-         * Sapaad does not provide an order-level discount
-         * field.
-         *
-         * Therefore:
-         *
-         * subtotal
-         *     -
-         * Sapaad total
-         *     =
-         * order discount amount
-         */
+ * =================================================
+ * ORDER DISCOUNT
+ * =================================================
+ *
+ * At this point:
+ *
+ * subtotalBeforeOrderDiscount
+ * =
+ * item totals
+ * - item discounts
+ * + modifiers
+ *
+ * If this already matches the Sapaad total,
+ * there is NO order-level discount.
+ */
 
-            $orderDiscountAmount = round(
-                $subtotalBeforeOrderDiscount
-                    - $sourceTotal,
-                2
-            );
-
-            /*
-         * Default values.
-         */
-
+            $orderDiscountAmount = 0;
             $orderDiscount = null;
-
             $orderDiscountPercentage = null;
 
-            /*
-         * If the difference is effectively zero,
-         * there is no order-level discount.
-         */
-
-            if ($orderDiscountAmount <= 0.01) {
-                $orderDiscountAmount = 0;
-            }
-
-            /*
-         * =================================================
-         * ORDER DISCOUNT EXISTS
-         * =================================================
-         */
-
-            if ($orderDiscountAmount > 0) {
+            if (
+                $sourceTotal < $subtotalBeforeOrderDiscount
+                && !$this->amountsEqual(
+                    $sourceTotal,
+                    $subtotalBeforeOrderDiscount
+                )
+            ) {
                 /*
-             * Cannot calculate percentage from zero subtotal.
-             */
+     * There is a real difference between the
+     * calculated subtotal and the Sapaad total.
+     *
+     * Therefore, Sapaad likely has an order-level
+     * discount.
+     */
+
+                $orderDiscountAmount = round(
+                    $subtotalBeforeOrderDiscount - $sourceTotal,
+                    2
+                );
+
+                /*
+     * Cannot calculate percentage from zero subtotal.
+     */
 
                 if ($subtotalBeforeOrderDiscount <= 0) {
                     $errors[] = [
@@ -476,17 +470,8 @@ class SapaadImportValidator
                     ];
                 } else {
                     /*
-                 * Calculate percentage.
-                 *
-                 * Example:
-                 *
-                 * subtotal = 100
-                 * total    = 90
-                 *
-                 * discount = 10
-                 *
-                 * percentage = 10%
-                 */
+         * Calculate order discount percentage.
+         */
 
                     $orderDiscountPercentage = round(
                         (
@@ -497,8 +482,8 @@ class SapaadImportValidator
                     );
 
                     /*
-                 * Find the matching local Discount.
-                 */
+         * Find matching local percentage discount.
+         */
 
                     $orderDiscount =
                         $this->mapper->percentageDiscount(
@@ -506,23 +491,15 @@ class SapaadImportValidator
                         );
 
                     /*
-                 * Discount does not exist.
-                 *
-                 * This is an ERROR, not a warning.
-                 */
+         * Discount does not exist.
+         */
 
                     if (!$orderDiscount) {
                         $errors[] = [
                             'type' => 'unmapped_order_discount',
-
-                            'value' =>
-                            $orderDiscountPercentage,
-
-                            'amount' =>
-                            $orderDiscountAmount,
-
-                            'message' =>
-                            sprintf(
+                            'value' => $orderDiscountPercentage,
+                            'amount' => $orderDiscountAmount,
+                            'message' => sprintf(
                                 'Order discount of %.2f%% (%.2f) was calculated, but no matching percentage discount was found.',
                                 $orderDiscountPercentage,
                                 $orderDiscountAmount
