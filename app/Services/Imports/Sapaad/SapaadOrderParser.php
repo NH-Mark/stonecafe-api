@@ -14,7 +14,7 @@ class SapaadOrderParser
             ),
 
             'order_no' => 'ORD-' . trim((string) ($row['Order No'] ?? '')),
-            
+
             'order_sequence' => trim(
                 (string) ($row['Order No'] ?? '')
             ),
@@ -112,16 +112,16 @@ class SapaadOrderParser
         }
 
         /*
-         * Remove the payment amount.
-         *
-         * Example:
-         *
-         * RCVRY CARD PAYMENT - 30.0
-         *
-         * becomes:
-         *
-         * RCVRY CARD PAYMENT
-         */
+     * Remove the payment amount.
+     *
+     * Example:
+     *
+     * RCVRY CARD PAYMENT - 30.0
+     *
+     * becomes:
+     *
+     * RCVRY CARD PAYMENT
+     */
 
         $parts = explode(
             ' - ',
@@ -134,23 +134,20 @@ class SapaadOrderParser
         );
 
         /*
-         * Sapaad payment name mappings.
-         */
+     * Sapaad payment name mappings.
+     */
 
-        return match (
-            mb_strtolower(
-                preg_replace(
-                    '/\s+/u',
-                    ' ',
-                    $method
-                )
+        return match (mb_strtolower(
+            preg_replace(
+                '/\s+/u',
+                ' ',
+                $method
             )
-        ) {
-            'rcvry card payment' =>
-                'Card Payment',
+        )) {
+            'rcvry card payment' => 'Card Payment',
+            'rcvry cash' => 'Cash',
 
-            default =>
-                $method,
+            default => $method,
         };
     }
 

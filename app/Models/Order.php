@@ -12,6 +12,7 @@ class Order extends Model
     const STATUS_PENDING = 'pending';
     const STATUS_CONFIRMED = 'confirmed';
     // const STATUS_PREPARING = 'preparing';
+    
     const STATUS_COMPLETED = 'completed';
     const STATUS_CANCELLED = 'cancelled';
 
@@ -64,6 +65,8 @@ class Order extends Model
             OrderType::class
         );
     }
+
+
     public function orderSource()
     {
         return $this->belongsTo(OrderSource::class);
