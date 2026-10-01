@@ -400,7 +400,7 @@ class OrderController extends Controller
     */
 
         $orders = $query
-            ->latest('ordered_at')
+            ->latest('id')
             ->paginate($perPage);
 
         return OrderResource::collection(
