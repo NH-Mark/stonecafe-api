@@ -463,108 +463,108 @@ class SalesDashboardService
             ->toArray();
     }
     private function topSellingModifiers(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
 
-    $query = OrderItemModifier::query()
+        $query = OrderItemModifier::query()
 
-        ->join(
-            'order_items',
-            'order_items.id',
-            '=',
-            'order_item_modifiers.order_item_id'
-        )
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_modifiers.order_item_id'
+            )
 
-        ->join(
-            'orders',
-            'orders.id',
-            '=',
-            'order_items.order_id'
-        )
+            ->join(
+                'orders',
+                'orders.id',
+                '=',
+                'order_items.order_id'
+            )
 
-        ->join(
-            'menu_items',
-            'menu_items.id',
-            '=',
-            'order_items.menu_item_id'
-        )
+            ->join(
+                'menu_items',
+                'menu_items.id',
+                '=',
+                'order_items.menu_item_id'
+            )
 
-        ->join(
-            'modifiers',
-            'modifiers.id',
-            '=',
-            'order_item_modifiers.modifier_id'
+            ->join(
+                'modifiers',
+                'modifiers.id',
+                '=',
+                'order_item_modifiers.modifier_id'
+            );
+
+        $this->applyFilters(
+            $query,
+            $request,
+            $from,
+            $to
         );
 
-    $this->applyFilters(
-        $query,
-        $request,
-        $from,
-        $to
-    );
+        return $query
 
-    return $query
+            ->selectRaw("
+                menu_items.name as menu_item,
 
-        ->selectRaw("
-            menu_items.name as menu_item,
+                modifiers.name as name,
 
-            modifiers.name as name,
+                modifiers.price as modifier_price,
 
-            modifiers.price as modifier_price,
+                SUM(
+                    order_item_modifiers.quantity
+                ) as qty,
 
-            SUM(
-                order_item_modifiers.quantity
-            ) as qty,
+                SUM(
+                    order_item_modifiers.quantity *
+                    modifiers.price
+                ) as total_amount
+            ")
 
-            SUM(
-                order_item_modifiers.quantity *
-                modifiers.price
-            ) as total_amount
-        ")
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'modifiers.id',
+                'modifiers.name',
+                'modifiers.price'
+            )
 
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'modifiers.id',
-            'modifiers.name',
-            'modifiers.price'
-        )
+            // Skip modifiers with zero revenue
+            ->havingRaw("
+                SUM(
+                    order_item_modifiers.quantity *
+                    modifiers.price
+                ) > 0
+            ")
 
-        // Skip modifiers with zero revenue
-        ->havingRaw("
-            SUM(
-                order_item_modifiers.quantity *
-                modifiers.price
-            ) > 0
-        ")
+            ->orderByDesc('total_amount')
 
-        ->orderByDesc('total_amount')
+            ->limit(50)
 
-        ->limit(5)
+            ->get()
 
-        ->get()
+            ->map(function ($item) {
 
-        ->map(function ($item) {
+                return [
 
-            return [
+                    'menu_item' => $item->menu_item,
 
-                'menu_item' => $item->menu_item,
+                    'name' => $item->name,
 
-                'name' => $item->name,
+                    'qty' => (int) $item->qty,
 
-                'qty' => (int) $item->qty,
+                    'price' => (float) $item->modifier_price,
 
-                'price' => (float) $item->modifier_price,
+                    'sales' => (float) $item->total_amount,
 
-                'sales' => (float) $item->total_amount,
+                ];
+            })
 
-            ];
-        })
-
-        ->toArray();
-}
+            ->toArray();
+    }
 
     // private function topSellingModifiers(
     //     Request $request,
