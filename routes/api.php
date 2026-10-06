@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DailySalesEmailController;
 use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
+use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventRegistrationController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\MenuItemTagController;
@@ -257,5 +259,10 @@ Route::middleware('auth:sanctum')->group(function () {
             [SapaadImportController::class, 'execute']
         );
     });
-
 });
+
+Route::get('/events', [EventController::class, 'index']);
+Route::post(
+    '/event-registrations',
+    [EventRegistrationController::class, 'store']
+);
