@@ -71,9 +71,9 @@ class EventRegistrationConfirmed extends Mailable
     private function reference(): string
     {
         return $this->registration->reference
-            ?? 'REG-' . str_pad(
+            ?? 'ST-' . str_pad(
                 (string) $this->registration->id,
-                6,
+                3,
                 '0',
                 STR_PAD_LEFT
             );
