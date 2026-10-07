@@ -283,8 +283,6 @@
 
                         </td>
                     </tr>
-
-                    <!-- Important Message -->
                     <tr>
                         <td style="padding: 0 40px 35px;">
 

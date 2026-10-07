@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventRegistrationController;
+use App\Http\Controllers\Api\EventTimeSlotController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\MenuItemTagController;
@@ -265,4 +266,9 @@ Route::get('/events', [EventController::class, 'index']);
 Route::post(
     '/event-registrations',
     [EventRegistrationController::class, 'store']
+);
+
+Route::get(
+    '/events/{event}/time-slots',
+    [EventTimeSlotController::class, 'index']
 );
