@@ -37,7 +37,10 @@
 
     <p>
         If you need to change or cancel your booking, please contact us at
-        [Contact Email / Phone] as early as possible.
+        <a href="mailto:info@stone.qa">info@stone.qa</a>
+        or
+        <a href="tel:+97466022878">+974 66022878</a>
+        as early as possible.
     </p>
 
     <p>

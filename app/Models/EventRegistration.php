@@ -40,6 +40,6 @@ class EventRegistration extends Model
     
     public function timeSlot(): BelongsTo
     {
-        return $this->belongsTo(EventTimeSlot::class);
+        return $this->belongsTo(EventTimeSlot::class, 'event_time_slot_id');
     }
 }
