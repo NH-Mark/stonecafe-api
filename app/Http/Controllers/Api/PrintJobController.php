@@ -14,6 +14,7 @@ class PrintJobController extends Controller
         $jobs = PrintJob::query()
             ->where('status', 'pending')
             ->with([
+                'printerConfig',
                 'order.orderType',
                 'order.orderSource',
                 'order.customer',
@@ -114,8 +115,13 @@ class PrintJobController extends Controller
                         'id' =>
                             $job->id,
 
-                        'printer' =>
-                            $job->printer,
+                        'printer' => [
+                                'id' => $job->printerConfig?->id,
+                                'name' => $job->printerConfig?->system_name,
+                                'address' => $job->printerConfig?->address,
+                                'connection_type' => $job->printerConfig?->connection_type,
+                                'port' => $job->printerConfig?->port,
+                            ],
 
                         'type' =>
                             $job->type,
@@ -167,8 +173,13 @@ class PrintJobController extends Controller
                         'id' =>
                             $job->id,
 
-                        'printer' =>
-                            $job->printer,
+                        'printer' => [
+                            'id' => $job->printerConfig?->id,
+                            'name' => $job->printerConfig?->system_name,
+                            'address' => $job->printerConfig?->address,
+                            'connection_type' => $job->printerConfig?->connection_type,
+                            'port' => $job->printerConfig?->port,
+                        ],
 
                         'type' =>
                             $job->type,
@@ -198,8 +209,13 @@ class PrintJobController extends Controller
                     'id' =>
                         $job->id,
 
-                    'printer' =>
-                        $job->printer,
+                    'printer' => [
+                            'id' => $job->printerConfig?->id,
+                            'name' => $job->printerConfig?->system_name,
+                            'address' => $job->printerConfig?->address,
+                            'connection_type' => $job->printerConfig?->connection_type,
+                            'port' => $job->printerConfig?->port,
+                        ],
 
                     'type' =>
                         $job->type,

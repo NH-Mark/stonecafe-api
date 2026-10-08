@@ -48,4 +48,13 @@ class PrintJob extends Model
             PrintJobItem::class
         );
     }
+
+    public function printerConfig()
+    {
+        return $this->belongsTo(
+            Printer::class,
+            'printer',
+            'system_name'
+        );
+    }
 }

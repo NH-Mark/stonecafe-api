@@ -708,11 +708,11 @@ class OrderController extends Controller
             ]);
 
 
-            event(
-                new KitchenOrderCreated(
-                    $order
-                )
-            );
+            // event(
+            //     new KitchenOrderCreated(
+            //         $order
+            //     )
+            // );
 
             $this->printJobService->createKotJobs($order);
 
