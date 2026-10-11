@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Customer\PaymentController;
 use App\Http\Controllers\Api\Customer\PaymentWebhookController;
+use App\Http\Controllers\MicrosoftAuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -23,4 +24,5 @@ Route::post('/orders/skipcash/webhook/{order}', [
     PaymentWebhookController::class,
     'handle'
 ]);
+
 

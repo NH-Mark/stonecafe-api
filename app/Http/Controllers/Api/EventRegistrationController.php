@@ -3,17 +3,273 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\EventRegistrationResource;
 use App\Mail\EventRegistrationConfirmed;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\EventTimeSlot;
+use App\Exports\EventRegistrationsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EventRegistrationController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $perPage = min(
+            $request->integer('per_page', 10),
+            100
+        );
+
+        $query = EventRegistration::query()
+            ->with([
+                'event',
+                'timeSlot',
+            ]);
+
+        /*
+         * Global search.
+         */
+        $query->when(
+            $request->filled('search'),
+            function ($query) use ($request) {
+
+                $search = $request->search;
+
+                $query->where(function ($query) use ($search) {
+
+                    $query->where(
+                        'full_name',
+                        'like',
+                        "%{$search}%"
+                    )
+
+                        ->orWhere(
+                            'email',
+                            'like',
+                            "%{$search}%"
+                        )
+
+                        ->orWhere(
+                            'phone',
+                            'like',
+                            "%{$search}%"
+                        )
+
+                        ->orWhere(
+                            'company',
+                            'like',
+                            "%{$search}%"
+                        )
+
+                        ->orWhereHas(
+                            'event',
+                            function ($query) use ($search) {
+
+                                $query->where(
+                                    'name',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                            }
+                        )
+
+                        ->orWhereHas(
+                            'timeSlot',
+                            function ($query) use ($search) {
+
+                                $query->where(
+                                    'name',
+                                    'like',
+                                    "%{$search}%"
+                                );
+                            }
+                        );
+                });
+            }
+        );
+
+        /*
+         * DataTable column filters.
+         */
+        $filters = $request->input(
+            'filters',
+            []
+        );
+
+        foreach ($filters as $filter) {
+
+            $column = $filter['id'] ?? null;
+            $value = $filter['value'] ?? null;
+
+            if (
+                !$column ||
+                $value === null ||
+                $value === ''
+            ) {
+                continue;
+            }
+
+            switch ($column) {
+
+                case 'full_name':
+
+                    $query->where(
+                        'full_name',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'email':
+
+                    $query->where(
+                        'email',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'phone':
+
+                    $query->where(
+                        'phone',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'company':
+
+                    $query->where(
+                        'company',
+                        'like',
+                        "%{$value}%"
+                    );
+
+                    break;
+
+                case 'event_id':
+
+                    $query->whereHas(
+                        'event',
+                        function ($query) use ($value) {
+                            $query->where(
+                                'name',
+                                'like',
+                                "%{$value}%"
+                            );
+                        }
+                    );
+
+                    break;
+
+                case 'event_time_slot_id':
+
+                    $query->where(
+                        'event_time_slot_id',
+                        $value
+                    );
+
+                    break;
+
+                case 'status':
+
+                    $query->where(
+                        'status',
+                        $value
+                    );
+
+                    break;
+
+                case 'payment_status':
+
+                    $query->where(
+                        'payment_status',
+                        $value
+                    );
+
+                    break;
+            }
+        }
+
+        $registrations = $query
+            ->latest()
+            ->paginate($perPage);
+
+        return EventRegistrationResource::collection(
+            $registrations
+        );
+    }
+
+
+    /**
+     * Display a single registration.
+     */
+    public function show(
+        EventRegistration $eventRegistration
+    ) {
+        $eventRegistration->load([
+            'event',
+            'timeSlot',
+        ]);
+
+        return response()->json([
+            'data' => $eventRegistration,
+        ]);
+    }
+
+
+    /**
+     * Update registration status.
+     */
+    public function updateStatus(
+        Request $request,
+        EventRegistration $eventRegistration
+    ) {
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                'in:pending,confirmed,cancelled',
+            ],
+        ]);
+
+        $eventRegistration->update([
+            'status' => $validated['status'],
+        ]);
+
+        return response()->json([
+            'message' => 'Registration status updated successfully.',
+            'data' => $eventRegistration->fresh([
+                'event',
+                'timeSlot',
+            ]),
+        ]);
+    }
+
+
+    /**
+     * Delete a registration.
+     */
+    public function destroy(
+        EventRegistration $eventRegistration
+    ) {
+        $eventRegistration->delete();
+
+        return response()->json([
+            'message' => 'Registration deleted successfully.',
+        ]);
+    }
+
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -141,7 +397,7 @@ class EventRegistrationController extends Controller
                 if (!$slot) {
                     throw ValidationException::withMessages([
                         'event_time_slot_id' =>
-                            'The selected session is no longer available.',
+                        'The selected session is no longer available.',
                     ]);
                 }
 
@@ -166,7 +422,7 @@ class EventRegistrationController extends Controller
                 if ($requestedSeats > $availableSeats) {
                     throw ValidationException::withMessages([
                         'seat_count' =>
-                            "Only {$availableSeats} seat" .
+                        "Only {$availableSeats} seat" .
                             ($availableSeats === 1 ? '' : 's') .
                             " remaining in this session.",
                     ]);
@@ -195,7 +451,7 @@ class EventRegistrationController extends Controller
                 ) {
                     throw ValidationException::withMessages([
                         'event_id' =>
-                            'This event is currently full.',
+                        'This event is currently full.',
                     ]);
                 }
             }
@@ -213,10 +469,10 @@ class EventRegistrationController extends Controller
                     ? (int) $validated['seat_count']
                     : 1,
 
-                'selection_status' => $event->registration_type ===
-                    'throwdown_application'
-                    ? 'pending'
-                    : 'selected',
+                // 'selection_status' => $event->registration_type ===
+                //     'throwdown_application'
+                //     ? 'pending'
+                //     : 'selected',
 
                 'metadata' => array_merge(
                     $validated['metadata'] ?? [],
@@ -225,9 +481,7 @@ class EventRegistrationController extends Controller
                     ]
                 ),
 
-                'status' => $isPaid
-                    ? 'pending'
-                    : 'confirmed',
+                'status' => 'pending',
 
                 'payment_status' => $isPaid
                     ? 'pending'
@@ -250,31 +504,32 @@ class EventRegistrationController extends Controller
          * FREE EVENT
          */
         // if (!$isPaid) {
-            $registration->load([
-                'event',
-                'timeSlot',
-            ]);
+        $registration->load([
+            'event',
+            'timeSlot',
+        ]);
 
-            Mail::to($registration->email)
-                ->send(
-                    new EventRegistrationConfirmed($registration)
-                );
+        Mail::to($registration->email)
+            ->send(
+                new EventRegistrationConfirmed($registration)
+            );
 
-            // return response()->json([
-            //     'message' =>
-            //         'Registration completed successfully.',
 
-            //     'data' => [
-            //         'id' => $registration->id,
-            //         'event_id' => $registration->event_id,
-            //         'status' => $registration->status,
-            //         'payment_status' =>
-            //             $registration->payment_status,
-            //         'payment_amount' => null,
-            //         'payment_currency' => null,
-            //         'payment_url' => null,
-            //     ],
-            // ], 201);
+        // return response()->json([
+        //     'message' =>
+        //         'Registration completed successfully.',
+
+        //     'data' => [
+        //         'id' => $registration->id,
+        //         'event_id' => $registration->event_id,
+        //         'status' => $registration->status,
+        //         'payment_status' =>
+        //             $registration->payment_status,
+        //         'payment_amount' => null,
+        //         'payment_currency' => null,
+        //         'payment_url' => null,
+        //     ],
+        // ], 201);
         // }
 
         /*
@@ -300,23 +555,86 @@ class EventRegistrationController extends Controller
 
         return response()->json([
             'message' =>
-                'Registration created. Payment is required.',
+            'Registration created. Payment is required.',
 
             'data' => [
                 'id' => $registration->id,
                 'event_id' => $registration->event_id,
                 'status' => $registration->status,
                 'payment_status' =>
-                    $registration->payment_status,
+                $registration->payment_status,
 
                 'payment_amount' =>
-                    $registration->payment_amount,
+                $registration->payment_amount,
 
                 'payment_currency' =>
-                    $registration->payment_currency,
+                $registration->payment_currency,
 
                 'payment_url' => $paymentUrl,
             ],
         ], 201);
+    }
+
+    public function updateSelectionStatus(
+        Request $request,
+        EventRegistration $eventRegistration
+    ) {
+        $validated = $request->validate([
+            'selection_status' => [
+                'required',
+                Rule::in([
+                    'pending',
+                    'selected',
+                    'not_selected',
+                    'waitlisted',
+                ]),
+            ],
+        ]);
+
+        $eventRegistration->update([
+            'selection_status' => $validated['selection_status'],
+        ]);
+
+        return response()->json([
+            'message' => 'Selection status updated successfully.',
+            'data' => $eventRegistration->fresh()->load([
+                'event',
+                'timeSlot',
+            ]),
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'event_id' => ['nullable', 'integer', 'exists:events,id'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'filters' => ['nullable', 'string'],
+        ]);
+
+        $filters = [];
+
+        if (!empty($validated['filters'])) {
+            $decoded = json_decode($validated['filters'], true);
+
+            if (!is_array($decoded)) {
+                return response()->json([
+                    'message' => 'Invalid filters format.',
+                ], 422);
+            }
+
+            $filters = $decoded;
+        }
+
+        $export = new EventRegistrationsExport(
+            (int) ($validated['event_id'] ?? 0),
+            $validated['search'] ?? '',
+            $filters,
+        );
+
+        return Excel::download(
+            $export,
+            'event-registrations-' . now()->format('Y-m-d-His') . '.xlsx'
+        );
     }
 }

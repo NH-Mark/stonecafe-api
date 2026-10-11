@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventRegistrationController;
+use App\Http\Controllers\Api\EventRegistrationEmailController;
 use App\Http\Controllers\Api\EventTimeSlotController;
 use App\Http\Controllers\Api\FoodSymbolController;
 use App\Http\Controllers\Api\MenuItemController;
@@ -260,6 +261,28 @@ Route::middleware('auth:sanctum')->group(function () {
             [SapaadImportController::class, 'execute']
         );
     });
+
+    Route::prefix('event-registrations')->group(function () {
+         Route::get(
+            '/export',
+            [EventRegistrationController::class, 'export']
+        );
+        Route::get('/', [ EventRegistrationController::class, 'index', ]);
+        Route::get('/{eventRegistration}', [ EventRegistrationController::class, 'show', ]); Route::patch('/{eventRegistration}/status', [ EventRegistrationController::class, 'updateStatus', ]);
+        Route::delete('/{eventRegistration}', [ EventRegistrationController::class, 'destroy', ]);
+
+        Route::post(
+            '/send-emails',
+            [EventRegistrationEmailController::class, 'send']
+        );
+
+        Route::patch(
+            '/{eventRegistration}/selection-status',
+            [EventRegistrationController::class, 'updateSelectionStatus']
+        );
+       
+    });
+    
 });
 
 Route::get('/events', [EventController::class, 'index']);

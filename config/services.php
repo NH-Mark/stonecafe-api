@@ -48,4 +48,11 @@ return [
 
     ],
 
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'tenant_id' => env('MICROSOFT_TENANT_ID'),
+        'redirect_uri' => env('MICROSOFT_REDIRECT_URI'),
+    ],
+
 ];

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EventRegistration extends Model
@@ -24,7 +25,8 @@ class EventRegistration extends Model
         'paid_at',
         'event_time_slot_id',
         'seat_count',
-        'metadata'
+        'metadata',
+        'selection_status'
     ];
 
     protected $casts = [
@@ -41,5 +43,10 @@ class EventRegistration extends Model
     public function timeSlot(): BelongsTo
     {
         return $this->belongsTo(EventTimeSlot::class, 'event_time_slot_id');
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(EventRegistrationEmail::class);
     }
 }

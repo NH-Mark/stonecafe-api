@@ -11,6 +11,8 @@
         "laravel/reverb": "^1.11",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
+        "league/oauth2-client": "^2.9",
+        "maatwebsite/excel": "*",
         "spatie/laravel-permission": "^6.25"
     },
     "require-dev": {
