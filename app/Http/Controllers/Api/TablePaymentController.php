@@ -547,7 +547,7 @@ class TablePaymentController extends Controller
                     $paymentBatchId,
 
                 'printer' =>
-                    'EPSON TM-T20III Receipt',
+                    'Kitchen-Printer',
 
                 'type' =>
                     'TABLE_RECEIPT',

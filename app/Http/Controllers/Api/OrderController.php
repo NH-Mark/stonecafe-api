@@ -2220,7 +2220,7 @@ class OrderController extends Controller
                     null,
 
                     'printer' =>
-                    'EPSON TM-T20III Receipt',
+                    'Kitchen-Printer',
 
                     'type' =>
                     'RECEIPT',
@@ -2388,7 +2388,7 @@ class OrderController extends Controller
 
             'payment_batch_id' => null,
 
-            'printer' => 'EPSON TM-T20III Receipt',
+            'printer' => 'Kitchen-Printer',
 
             'type' => 'RECEIPT',
 
