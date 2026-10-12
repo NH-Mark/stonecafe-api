@@ -34,7 +34,7 @@ class PrintJobService
 
         foreach ($itemsByPrinter as $printerId => $printerItems) {
             if ($printerId === 'default') {
-                $printerName = 'EPSON TM-T20III Receipt';
+                $printerName = 'Kitchen-Printer';
             } else {
                 $printer = $printerItems
                     ->first()
