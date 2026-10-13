@@ -124,17 +124,29 @@ class SalesDashboardService
                     'customers'
                 ),
 
-                $this->card(
+                // $this->card(
+                //     'Discounts',
+
+                //     $currentDiscounts,
+
+                //     $this->percentage(
+                //         $previousDiscounts,
+                //         $currentDiscounts
+                //     ),
+
+                //     'discount',
+                //     true
+                // ),
+
+                 $this->card(
                     'Discounts',
 
-                    $currentDiscounts,
-
+                    $currentOrders->sum('discount_amount'),
                     $this->percentage(
-                        $previousDiscounts,
-                        $currentDiscounts
+                        $previousOrders->avg('discount_amount'),
+                        $currentOrders->avg('discount_amount')
                     ),
-
-                    'discount',
+                    'average',
                     true
                 ),
 
