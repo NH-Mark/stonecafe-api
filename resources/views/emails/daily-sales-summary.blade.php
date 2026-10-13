@@ -150,8 +150,7 @@
 
                                     @if(in_array($stat['title'], [
                                     'Total Sales',
-                                    'Orders',
-                                    'Net Sales'
+                                    'Orders'
                                     ]))
 
                                     <td
@@ -253,7 +252,6 @@
 
                                 @if(in_array($stat['title'], [
                                 'Gross Sales',
-                                'Net Sales',
                                 'Average Order',
                                 'Discounts',
                                 'Refunds'
