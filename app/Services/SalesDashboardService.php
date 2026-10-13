@@ -11,6 +11,7 @@ use App\Models\OrderItemModifier;
 use App\Models\Refund;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SalesDashboardService
 {
@@ -50,6 +51,33 @@ class SalesDashboardService
 
         $previousRefunds = Refund::query()
             ->whereBetween('created_at', [$previousFrom, $previousTo]);
+
+
+        $currentTotalSales = $currentOrders->sum('subtotal') - $currentDiscounts;
+
+        $previousTotalSales = $previousOrders->sum('subtotal') - $previousDiscounts;
+
+        $currentCogs = OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->whereBetween('orders.ordered_at', [$from, $to])
+            ->when($request->filled('location_id'), fn ($q) =>
+                $q->where('orders.location_id', $request->location_id)
+            )
+            ->sum(
+                DB::raw('order_items.quantity * menu_items.cost_price')
+            );
+
+        $previousCogs = OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
+            ->when($request->filled('location_id'), fn ($q) =>
+                $q->where('orders.location_id', $request->location_id)
+            )
+            ->sum(
+                DB::raw('order_items.quantity * menu_items.cost_price')
+            );
 
         // if ($request->filled('location_id')) {
         //     $currentRefunds->where('location_id', $request->location_id);
@@ -93,19 +121,15 @@ class SalesDashboardService
                 ),
 
                 $this->card(
-                    'Net Sales',
-                    $currentOrders->sum('total_amount')
-                        - $currentRefunds->sum('amount'),
+                    'Gross Profit',
+                    $currentTotalSales - $currentCogs,
                     $this->percentage(
-                        $previousOrders->sum('total_amount')
-                            - $previousRefunds->sum('amount'),
-                        $currentOrders->sum('total_amount')
-                            - $currentRefunds->sum('amount')
+                        $previousTotalSales - $previousCogs,
+                        $currentTotalSales - $currentCogs
                     ),
-                    'net',
+                    'profit',
                     true
                 ),
-
 
                 $this->card(
                     'Average Order',
