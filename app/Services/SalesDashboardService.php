@@ -94,19 +94,11 @@ class SalesDashboardService
 
                 $this->card(
                     'Net Sales',
-
-                    $currentOrders->sum('total_amount') -
-                        $currentDiscounts,
-
+                    $currentOrders->sum('total_amount'),
                     $this->percentage(
-
-                        $previousOrders->sum('total_amount') -
-                            $previousDiscounts,
-
-                        $currentOrders->sum('total_amount') -
-                            $currentDiscounts
+                        $previousOrders->sum('total_amount'),
+                        $currentOrders->sum('total_amount')
                     ),
-
                     'net',
                     true
                 ),
