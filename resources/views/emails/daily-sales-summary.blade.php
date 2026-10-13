@@ -135,94 +135,63 @@
 
                     {{-- SUMMARY CARDS --}}
 
+
                     <tr>
-
                         <td style="padding:20px 30px;">
-
-                            <table
-                                width="100%"
-                                cellpadding="0"
-                                cellspacing="0">
-
+                            <table width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
-
                                     @foreach($dashboard['stats'] as $stat)
-
-                                    @if(in_array($stat['title'], [
-                                    'Total Sales',
-                                    'Orders'
-                                    ]))
-
-                                    <td
-                                        width="33%"
-                                        style="
-                                    padding:5px;
-                                    vertical-align:top;
-                                ">
-
+                                    @if(in_array($stat['title'], ['Total Sales', 'Orders']))
+                                    <td width="50%" style="padding:5px; vertical-align:top;">
                                         <table
                                             width="100%"
+                                            height="110"
                                             cellpadding="0"
                                             cellspacing="0"
                                             style="
-                                        border:1px solid #e5e0dc;
-                                        border-radius:8px;
-                                    ">
-
+                                    width:100%;
+                                    height:110px;
+                                    border:1px solid #e5e0dc;
+                                    border-radius:8px;
+                                    border-collapse:separate;
+                                ">
                                             <tr>
-
                                                 <td
+                                                    height="110"
+                                                    valign="middle"
                                                     style="
-                                                padding:16px;
-                                            ">
-
-                                                    <div
-                                                        style="
-                                                    font-size:11px;
-                                                    color:#8a8179;
-                                                ">
+                                            height:110px;
+                                            padding:16px;
+                                            vertical-align:middle;
+                                        ">
+                                                    <div style="
+                                            font-size:11px;
+                                            line-height:16px;
+                                            color:#8a8179;
+                                        ">
                                                         {{ $stat['title'] }}
                                                     </div>
 
-                                                    <div
-                                                        style="
-                                                    margin-top:7px;
-                                                    font-size:20px;
-                                                    font-weight:bold;
-                                                    color:#40332a;
-                                                ">
+                                                    <div style="
+                                            margin-top:7px;
+                                            font-size:20px;
+                                            line-height:26px;
+                                            font-weight:bold;
+                                            color:#40332a;
+                                        ">
                                                         {{ $stat['value'] }}
                                                     </div>
-
-                                                    <!-- <div
-                                                        style="
-                                                    margin-top:5px;
-                                                    font-size:11px;
-                                                    color:#6b8e5a;
-                                                ">
-                                                        {{ $stat['change'] }}
-                                                        vs previous period
-                                                    </div> -->
-
                                                 </td>
-
                                             </tr>
-
                                         </table>
-
                                     </td>
-
                                     @endif
-
                                     @endforeach
-
                                 </tr>
-
                             </table>
-
                         </td>
-
                     </tr>
+
 
 
                     {{-- FINANCIAL SUMMARY --}}
