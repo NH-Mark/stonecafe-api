@@ -252,7 +252,6 @@
                                 @foreach($dashboard['stats'] as $stat)
 
                                 @if(in_array($stat['title'], [
-                                'Gross Sales',
                                 'Average Order',
                                 'Discounts',
                                 'Refunds'
