@@ -62,10 +62,10 @@ class SalesDashboardService
 
                 $this->card(
                     'Total Sales',
-                    $currentOrders->sum('total_amount'),
+                    $currentOrders->sum('subtotal') - $currentDiscounts,
                     $this->percentage(
-                        $previousOrders->sum('total_amount'),
-                        $currentOrders->sum('total_amount')
+                        $previousOrders->sum('subtotal') - $previousDiscounts,
+                        $currentOrders->sum('subtotal') - $currentDiscounts
                     ),
                     'sales',
                     true
@@ -94,14 +94,18 @@ class SalesDashboardService
 
                 $this->card(
                     'Net Sales',
-                    $currentOrders->sum('total_amount'),
+                    $currentOrders->sum('total_amount')
+                        - $currentRefunds->sum('amount'),
                     $this->percentage(
-                        $previousOrders->sum('total_amount'),
+                        $previousOrders->sum('total_amount')
+                            - $previousRefunds->sum('amount'),
                         $currentOrders->sum('total_amount')
+                            - $currentRefunds->sum('amount')
                     ),
                     'net',
                     true
                 ),
+
 
                 $this->card(
                     'Average Order',
@@ -124,29 +128,17 @@ class SalesDashboardService
                     'customers'
                 ),
 
-                // $this->card(
-                //     'Discounts',
-
-                //     $currentDiscounts,
-
-                //     $this->percentage(
-                //         $previousDiscounts,
-                //         $currentDiscounts
-                //     ),
-
-                //     'discount',
-                //     true
-                // ),
-
-                 $this->card(
+                $this->card(
                     'Discounts',
 
-                    $currentOrders->sum('discount_amount'),
+                    $currentDiscounts,
+
                     $this->percentage(
-                        $previousOrders->avg('discount_amount'),
-                        $currentOrders->avg('discount_amount')
+                        $previousDiscounts,
+                        $currentDiscounts
                     ),
-                    'average',
+
+                    'discount',
                     true
                 ),
 
