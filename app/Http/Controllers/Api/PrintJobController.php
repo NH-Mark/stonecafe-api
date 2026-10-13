@@ -80,6 +80,9 @@ class PrintJobController extends Controller
                                 'menu_item' =>
                                     $item->menuItem?->name,
 
+                                'arabic_name' =>
+                                    $item->menuItem?->name_ar,
+
                                 'quantity' =>
                                     $printJobItem->quantity,
 

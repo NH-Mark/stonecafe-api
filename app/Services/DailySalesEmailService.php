@@ -115,7 +115,7 @@ class DailySalesEmailService
 
             'this_week' => [
                 'from_date' => $today->copy()
-                    ->startOfWeek()
+                    ->startOfWeek(\Carbon\Carbon::SUNDAY)
                     ->toDateString(),
 
                 'to_date' => $today->toDateString(),
