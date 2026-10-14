@@ -9,7 +9,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-    <title>Daily Order Summary</title>
+    <title>Order Summary</title>
 
 </head>
 
@@ -59,7 +59,7 @@
                     font-size:22px;
                     font-weight:bold;
                 ">
-                                Daily Order Summary
+                                Order Summary
                             </div>
 
                             <div
@@ -114,7 +114,7 @@
                     font-size:16px;
                     font-weight:bold;
                 ">
-                                Daily Sales Report
+                                Sales Report
                             </div>
 
                             <p
@@ -663,7 +663,7 @@
                     font-size:12px;
                     color:#81786f;
                 ">
-                                This is an automated daily sales report.
+                                This is an automated sales report.
                             </p>
 
                             <p
