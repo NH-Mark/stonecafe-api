@@ -79,6 +79,12 @@ class SalesDashboardService
                 DB::raw('order_items.quantity * menu_items.cost_price')
             );
 
+        $grossSales = $currentOrders->sum('total_amount')
+                + $currentOrders->sum('discount');
+
+            $previousGrossSales = $previousOrders->sum('total_amount')
+                + $previousOrders->sum('discount');
+
         // if ($request->filled('location_id')) {
         //     $currentRefunds->where('location_id', $request->location_id);
         //     $previousRefunds->where('location_id', $request->location_id);
@@ -87,7 +93,6 @@ class SalesDashboardService
         return [
 
             'stats' => [
-
                 $this->card(
                     'Total Sales',
                     $currentOrders->sum('total_amount'),
@@ -109,18 +114,16 @@ class SalesDashboardService
                     'orders'
                 ),
 
-            
                 $this->card(
                     'Gross Sales',
-                    $currentOrders->sum(fn ($order) => $order->total_amount + $order->discount),
+                    $grossSales,
                     $this->percentage(
-                        $previousOrders->sum(fn ($order) => $order->total_amount + $order->discount),
-                        $currentOrders->sum(fn ($order) => $order->total_amount + $order->discount)
+                        $previousGrossSales,
+                        $grossSales
                     ),
                     'gross',
                     true
                 ),
-
 
                 $this->card(
                     'Gross Profit',
