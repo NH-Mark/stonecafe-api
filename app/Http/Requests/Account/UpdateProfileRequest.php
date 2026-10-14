@@ -27,10 +27,10 @@ class UpdateProfileRequest extends FormRequest
                 'max:255',
             ],
 
-            'location_id' => [
-                'required',
-                'exists:locations,id',
-            ],
+            // 'location_id' => [
+            //     'required',
+            //     'exists:locations,id',
+            // ],
 
         ];
     }

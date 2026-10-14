@@ -15,7 +15,7 @@ class AccountService
 
             'email' => $data['email'],
 
-            'location_id' => $data['location_id'],
+            // 'location_id' => $data['location_id'],
 
         ]);
 
