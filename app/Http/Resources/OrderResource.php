@@ -47,6 +47,7 @@ class OrderResource extends JsonResource
                     'id' => $item->id,
                     'menu_item_id' => $item->menuItem?->id,
                     'menu_item' => $item->menuItem?->name,
+                    'arabic_name' => $item->menuItem?->name_ar,
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
                     'total_price' => $item->total_price,
