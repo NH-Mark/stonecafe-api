@@ -26,7 +26,7 @@ class OrderCreated implements ShouldBroadcast, ShouldDispatchAfterCommit
 
     public function broadcastAs(): string
     {
-        return 'order.created';
+        return 'customer.order.created';
     }
 
     public function broadcastWith(): array
