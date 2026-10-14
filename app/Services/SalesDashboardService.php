@@ -90,10 +90,10 @@ class SalesDashboardService
 
                 $this->card(
                     'Total Sales',
-                    $currentOrders->sum('subtotal') - $currentDiscounts,
+                    $currentOrders->sum('total_amount'),
                     $this->percentage(
-                        $previousOrders->sum('subtotal') - $previousDiscounts,
-                        $currentOrders->sum('subtotal') - $currentDiscounts
+                        $previousOrders->sum('total_amount'),
+                        $currentOrders->sum('total_amount')
                     ),
                     'sales',
                     true
@@ -109,16 +109,18 @@ class SalesDashboardService
                     'orders'
                 ),
 
+            
                 $this->card(
                     'Gross Sales',
-                    $currentOrders->sum('subtotal'),
+                    $currentOrders->sum(fn ($order) => $order->total_amount + $order->discount),
                     $this->percentage(
-                        $previousOrders->sum('subtotal'),
-                        $currentOrders->sum('subtotal')
+                        $previousOrders->sum(fn ($order) => $order->total_amount + $order->discount),
+                        $currentOrders->sum(fn ($order) => $order->total_amount + $order->discount)
                     ),
                     'gross',
                     true
                 ),
+
 
                 $this->card(
                     'Gross Profit',
