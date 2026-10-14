@@ -80,10 +80,10 @@ class SalesDashboardService
             );
 
         $grossSales = $currentOrders->sum('total_amount')
-                + $currentOrders->sum('discount');
+                + $currentDiscounts;
 
             $previousGrossSales = $previousOrders->sum('total_amount')
-                + $previousOrders->sum('discount');
+                + $previousDiscounts;
 
         // if ($request->filled('location_id')) {
         //     $currentRefunds->where('location_id', $request->location_id);
