@@ -96,6 +96,60 @@ class LocationController extends Controller
         );
     }
 
+    public function getLocationSelectors(Request $request)
+    {
+        $user = $request->user();
+
+        // if ($user->hasRole('Super Admin')) {
+        //     $locations = Location::where('is_active', true)
+        //         ->get(['id', 'name']);
+        // } else {
+            $locations = $user->locations()
+                ->where('locations.status', true)
+                ->get(['locations.id', 'locations.name']);
+        // }
+
+        return response()->json([
+            'data' => $locations,
+        ]);
+    }
+
+    public function select(Request $request)
+    {
+        $validated = $request->validate([
+            'location_id' => ['required', 'integer', 'exists:locations,id'],
+        ]);
+
+        $user = $request->user();
+
+        $locationQuery = Location::where(
+            'id',
+            $validated['location_id']
+        )->where('status', true);
+
+        if (! $user->hasRole('Super Admin')) {
+            $locationQuery->whereHas('users', function ($query) use ($user) {
+                $query->where('users.id', $user->id);
+            });
+        }
+
+        $location = $locationQuery->first();
+
+        if (! $location) {
+            return response()->json([
+                'message' => 'You do not have access to this location.',
+            ], 403);
+        }
+
+        return response()->json([
+            'message' => 'Location selected successfully.',
+            'data' => [
+                'id' => $location->id,
+                'name' => $location->name,
+            ],
+        ]);
+    }
+
 
     public function store(
         LocationRequest $request
@@ -148,3 +202,4 @@ class LocationController extends Controller
         ]);
     }
 }
+

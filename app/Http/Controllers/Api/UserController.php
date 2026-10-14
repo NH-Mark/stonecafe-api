@@ -180,6 +180,7 @@ class UserController extends Controller
 
         return new RoleResource($role);
     }
+    
     public function update(
         UpdateUserRequest $request,
         user $user
@@ -190,14 +191,10 @@ class UserController extends Controller
                 $user,
                 $request->validated()
             );
-
-
         return new UserResource(
             $location
         );
     }
-
-
 
 
     public function destroy(

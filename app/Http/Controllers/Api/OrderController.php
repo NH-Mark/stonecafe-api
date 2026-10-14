@@ -500,14 +500,19 @@ class OrderController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $lastSequence =
-                Order::query()
+            $location = \App\Models\Location::query()
+                ->whereKey($request->location_id)
                 ->lockForUpdate()
+                ->firstOrFail();
+
+            $locationId = $location->id;
+
+            // Find the latest sequence for this location only.
+            $lastSequence = Order::query()
+                ->where('location_id', $locationId)
                 ->max('order_sequence');
 
-
-            $orderSequence =
-                $lastSequence
+            $orderSequence = $lastSequence !== null
                 ? $lastSequence + 1
                 : 1001;
 
@@ -521,8 +526,7 @@ class OrderController extends Controller
             $order = Order::create([
 
                 'order_no' =>
-                'ORD-' .
-                    $orderSequence,
+                $location->order_code . '-' . $orderSequence,
 
                 'order_sequence' =>
                 $orderSequence,

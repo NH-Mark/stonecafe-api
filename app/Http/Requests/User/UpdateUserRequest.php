@@ -47,12 +47,13 @@ class UpdateUserRequest extends FormRequest
                 'exists:roles,id',
             ],
 
-
-            'location_id' => [
-                'nullable',
+            'location_ids' => ['sometimes', 'array'],
+            
+            'location_ids.*' => [
+                'integer',
+                'distinct',
                 'exists:locations,id',
             ],
-
         ];
     }
 

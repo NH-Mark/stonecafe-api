@@ -243,6 +243,16 @@ Route::middleware('auth:sanctum')->group(function () {
         [OrderController::class, 'history']
     )->name('orders.history');
 
+    Route::get('/locations-selectors', [
+        LocationController::class,
+        'getLocationSelectors',
+    ]);
+
+    Route::post('/active-location', [
+        LocationController::class,
+        'select',
+    ]);
+
 
     Route::prefix('imports')
     ->group(function () {

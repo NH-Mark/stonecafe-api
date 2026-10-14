@@ -44,8 +44,11 @@ class StoreUserRequest extends FormRequest
             ],
 
 
-            'location_id' => [
-                'nullable',
+            'location_ids' => ['required', 'array', 'min:1'],
+            'location_ids.*' => [
+                'required',
+                'integer',
+                'distinct',
                 'exists:locations,id',
             ],
 
