@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PrintJob;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -521,6 +522,7 @@ class TablePaymentController extends Controller
                         'completed',
 
                     'payment_status'=>'paid',
+                    'cashier_id' =>Auth::id(),
                 ]);
             }
             event(

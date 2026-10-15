@@ -2168,7 +2168,8 @@ class OrderController extends Controller
 
             $order->update([
                 'payment_status' => $paymentStatus,
-                'order_source_id' => $validated['order_source_id'] ?? 1
+                'order_source_id' => $validated['order_source_id'] ?? 1,
+                'cashier_id' =>Auth::id(),
             ]);
 
 
