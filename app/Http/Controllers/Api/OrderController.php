@@ -28,8 +28,7 @@ class OrderController extends Controller
     public function __construct(
         protected PrintJobService $printJobService,
         protected OrderHistoryService $orderHistoryService
-    ) {
-    }
+    ) {}
 
 
     public function index(Request $request)
@@ -906,7 +905,7 @@ class OrderController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($order->id);
 
-          
+
 
 
             if (
@@ -990,9 +989,9 @@ class OrderController extends Controller
                     $request->input('notes');
             }
 
-            $newOrderValues = [ 'order_type_id' => $order->order_type_id, 'location_id' => $order->location_id, 'order_source_id' => $order->order_source_id, 'customer_id' => $order->customer_id, 'kitchen_status' => $order->kitchen_status, 'payment_status' => $order->payment_status, 'table_id' => $order->table_id, 'number_plate' => $order->number_plate, 'dining_session_id' => $order->dining_session_id, 'notes' => $order->notes, ];
-            if ($oldOrderValues != $newOrderValues) { 
-                $this->orderHistoryService->log( $order, 'order_updated', 'Order details changed', $oldOrderValues, $newOrderValues ); 
+            $newOrderValues = ['order_type_id' => $order->order_type_id, 'location_id' => $order->location_id, 'order_source_id' => $order->order_source_id, 'customer_id' => $order->customer_id, 'kitchen_status' => $order->kitchen_status, 'payment_status' => $order->payment_status, 'table_id' => $order->table_id, 'number_plate' => $order->number_plate, 'dining_session_id' => $order->dining_session_id, 'notes' => $order->notes,];
+            if ($oldOrderValues != $newOrderValues) {
+                $this->orderHistoryService->log($order, 'order_updated', 'Order details changed', $oldOrderValues, $newOrderValues);
             }
             /*
             |--------------------------------------------------------------------------
@@ -1020,7 +1019,7 @@ class OrderController extends Controller
                     422,
                     'Order contains an unsaved item. Send new items before saving order changes.'
                 );
-            }      
+            }
 
             $removedItems = $order->items()
                 ->with('menuItem')
@@ -1064,17 +1063,20 @@ class OrderController extends Controller
                     'notes' => $item->notes,
                 ];
 
-                $oldModifiers = $item->modifiers()->get()->map(fn ($modifier) => 
-                    [ 'modifier_id' => $modifier->modifier_id,
-                    'quantity' => $modifier->quantity,
-                    'price' => $modifier->price, ]
-                    )->values()->all();
+                $oldModifiers = $item->modifiers()->get()->map(
+                    fn($modifier) =>
+                    [
+                        'modifier_id' => $modifier->modifier_id,
+                        'quantity' => $modifier->quantity,
+                        'price' => $modifier->price,
+                    ]
+                )->values()->all();
 
-                $oldItemDiscounts = $item->discounts()->get()->map(fn ($discount) => [
+                $oldItemDiscounts = $item->discounts()->get()->map(fn($discount) => [
                     'discount_id' => $discount->discount_id,
                     'amount' => $discount->amount,
-                ])->values()->all();    
-                
+                ])->values()->all();
+
                 $item->update([
                     'menu_item_id' =>
                     $row['menu_item_id'],
@@ -1113,7 +1115,7 @@ class OrderController extends Controller
 
                 $item->modifiers()->delete();
 
-                
+
 
                 foreach (
                     $row['modifiers'] ?? []
@@ -1131,9 +1133,9 @@ class OrderController extends Controller
                     ]);
                 }
 
-                $newModifiers = $item->modifiers() ->get() ->map(fn ($modifier) => [ 'modifier_id' => $modifier->modifier_id, 'quantity' => $modifier->quantity, 'price' => $modifier->price, ]) ->values() ->all();
-                if ($oldModifiers != $newModifiers) { 
-                    $this->orderHistoryService->log( $order, 'item_modifiers_changed', "Modifiers changed for order item #{$item->id}", [ 'modifiers' => $oldModifiers, ], [ 'modifiers' => $newModifiers, ] ); 
+                $newModifiers = $item->modifiers()->get()->map(fn($modifier) => ['modifier_id' => $modifier->modifier_id, 'quantity' => $modifier->quantity, 'price' => $modifier->price,])->values()->all();
+                if ($oldModifiers != $newModifiers) {
+                    $this->orderHistoryService->log($order, 'item_modifiers_changed', "Modifiers changed for order item #{$item->id}", ['modifiers' => $oldModifiers,], ['modifiers' => $newModifiers,]);
                 }
                 $item->discounts()->delete();
 
@@ -1150,22 +1152,21 @@ class OrderController extends Controller
                     ]);
                 }
 
-                $newItemDiscounts = $item->discounts() ->get() ->map(fn ($discount) => [ 'discount_id' => $discount->discount_id, 'amount' => $discount->amount, ]) ->values() ->all(); 
-                /* |-------------------------------------------------------------------------- | Log item discount changes |-------------------------------------------------------------------------- */ 
-                if ($oldItemDiscounts != $newItemDiscounts) { 
-                    $this->orderHistoryService->log( $order, 'item_discount_changed', "Discount changed for order item #{$item->id}", [ 'discounts' => $oldItemDiscounts, ], [ 'discounts' => $newItemDiscounts, ] ); 
+                $newItemDiscounts = $item->discounts()->get()->map(fn($discount) => ['discount_id' => $discount->discount_id, 'amount' => $discount->amount,])->values()->all();
+                /* |-------------------------------------------------------------------------- | Log item discount changes |-------------------------------------------------------------------------- */
+                if ($oldItemDiscounts != $newItemDiscounts) {
+                    $this->orderHistoryService->log($order, 'item_discount_changed', "Discount changed for order item #{$item->id}", ['discounts' => $oldItemDiscounts,], ['discounts' => $newItemDiscounts,]);
                 }
-                
             }
 
             $oldOrderDiscounts = $order->discounts()
-            ->get()
-            ->map(fn ($discount) => [
-                'discount_id' => $discount->discount_id,
-                'amount' => $discount->amount,
-            ])
-            ->values()
-            ->all();
+                ->get()
+                ->map(fn($discount) => [
+                    'discount_id' => $discount->discount_id,
+                    'amount' => $discount->amount,
+                ])
+                ->values()
+                ->all();
 
 
             $order->discounts()->delete();
@@ -1197,13 +1198,13 @@ class OrderController extends Controller
             }
 
             $newOrderDiscounts = $order->discounts()
-            ->get()
-            ->map(fn ($discount) => [
-                'discount_id' => $discount->discount_id,
-                'amount' => $discount->amount,
-            ])
-            ->values()
-            ->all();
+                ->get()
+                ->map(fn($discount) => [
+                    'discount_id' => $discount->discount_id,
+                    'amount' => $discount->amount,
+                ])
+                ->values()
+                ->all();
 
             if ($oldOrderDiscounts != $newOrderDiscounts) {
                 $this->orderHistoryService->log(
@@ -1219,7 +1220,7 @@ class OrderController extends Controller
                     $request->input('reason')
                 );
             }
-            
+
             $oldTotals = [
                 'subtotal' => $order->subtotal,
                 'discount_amount' => $order->discount_amount,
@@ -1309,16 +1310,16 @@ class OrderController extends Controller
             }
 
             $oldPayments = $order->payments()
-            ->get()
-            ->map(fn ($payment) => [
-                'id' => $payment->id,
-                'payment_method_id' => $payment->payment_method_id,
-                'amount' => $payment->amount,
-                'reference' => $payment->reference,
-                'paid_at' => $payment->paid_at,
-            ])
-            ->values()
-            ->all();
+                ->get()
+                ->map(fn($payment) => [
+                    'id' => $payment->id,
+                    'payment_method_id' => $payment->payment_method_id,
+                    'amount' => $payment->amount,
+                    'reference' => $payment->reference,
+                    'paid_at' => $payment->paid_at,
+                ])
+                ->values()
+                ->all();
 
             $payments = $request->input(
                 'payments',
@@ -1496,10 +1497,10 @@ class OrderController extends Controller
                     $payment['paid_at'] ?? now(),
                 ]);
             }
-            
+
             $newPayments = $order->payments()
                 ->get()
-                ->map(fn ($payment) => [
+                ->map(fn($payment) => [
                     'id' => $payment->id,
                     'payment_method_id' => $payment->payment_method_id,
                     'amount' => $payment->amount,
@@ -1663,7 +1664,7 @@ class OrderController extends Controller
             | Keep client line_id -> database item id mapping
             |--------------------------------------------------------------------------
             */
-               $createdOrderItems->push($item);
+                $createdOrderItems->push($item);
 
                 $createdItems[] = [
                     'id' => $item->id,
@@ -2336,41 +2337,198 @@ class OrderController extends Controller
         ]);
     }
 
-    public function updateStatus(
-        Request $request,
-        Order $order
-    ) {
+    // public function updateStatus(
+    //     Request $request,
+    //     Order $order
+    // ) {
+    //     $validated = $request->validate([
+    //         'status' => [
+    //             'required',
+    //             Rule::in([
+    //                 'confirmed',
+    //                 'cancelled',
+    //             ]),
+    //         ],
+    //     ]);
+
+    //     if ($order->status !== 'pending') {
+    //         return response()->json([
+    //             'message' => 'Only pending orders can be updated.',
+    //         ], 422);
+    //     }
+
+    //     $order->status = $validated['status'];
+    //     $order->save();
+
+    //     if ($order->status === 'confirmed') {
+    //         event(
+    //             new KitchenOrderCreated($order->fresh())
+    //         );
+    //         $this->printJobService->createKotJobs($order);
+    //     }
+
+    //     return response()->json([
+    //         'message' => 'Order status updated successfully.',
+    //         'order' => $order->fresh(),
+    //     ]);
+    // }
+
+    public function updateStatus(Request $request, Order $order)
+    {
         $validated = $request->validate([
             'status' => [
                 'required',
-                Rule::in([
-                    'confirmed',
-                    'cancelled',
-                ]),
+                Rule::in(['confirmed', 'cancelled']),
             ],
         ]);
 
-        if ($order->status !== 'pending') {
-            return response()->json([
-                'message' => 'Only pending orders can be updated.',
-            ], 422);
-        }
+        $updatedOrder = DB::transaction(function () use (
+            $validated,
+            $order
+        ) {
+            // Prevent duplicate confirmation of the same order.
+            $order = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
 
-        $order->status = $validated['status'];
-        $order->save();
+            if ($order->status !== 'pending') {
+                abort(422, 'Only pending orders can be updated.');
+            }
 
-        if ($order->status === 'confirmed') {
-            event(
-                new KitchenOrderCreated($order->fresh())
-            );
-            $this->printJobService->createKotJobs($order);
-        }
+            $order->load([
+                'orderType',
+                'orderSource',
+                'diningSession',
+            ]);
 
-        return response()->json([
-            'message' => 'Order status updated successfully.',
-            'order' => $order->fresh(),
-        ]);
+            if ($validated['status'] === 'confirmed') {
+                $orderTypeCode = strtolower(
+                    (string) $order->orderType?->code
+                );
+
+                if ($orderTypeCode === 'dine_in' && $order->table_id) {
+                    if ($order->dining_session_id) {
+                        abort(
+                            422,
+                            'A dining session is already assigned to this order.'
+                        );
+                    }
+
+                    /*
+                 * Lock all table rows in a consistent order.
+                 * This serializes table assignment when all code paths
+                 * that create sessions follow the same locking protocol.
+                 */
+                    $tables = RestaurantTable::query()
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($tables->isEmpty()) {
+                        abort(422, 'No restaurant tables are configured.');
+                    }
+
+                    // Use the order's specified table, if available.
+                    if ($order->table_id) {
+                        $table = $tables->firstWhere(
+                            'id',
+                            $order->table_id
+                        );
+
+                        if (!$table) {
+                            abort(422, 'The selected table does not exist.');
+                        }
+                    } else {
+                        /*
+                     * For orders without a table ID, select only a free
+                     * table. Do not attach an unassigned order to an
+                     * arbitrary customer's occupied table.
+                     */
+                        $activeTableIds = DiningSession::query()
+                            ->whereIn('status', ['open', 'billing'])
+                            ->whereIn('table_id', $tables->pluck('id'))
+                            ->pluck('table_id')
+                            ->unique();
+
+                        $table = $tables->first(
+                            fn($candidate) =>
+                            !$activeTableIds->contains($candidate->id)
+                        );
+
+                        if (!$table) {
+                            abort(
+                                422,
+                                'No available tables. Please free a table and try again.'
+                            );
+                        }
+                    }
+
+                    /*
+                 * Reuse an existing open session for this table.
+                 * This lets multiple orders belong to one table session.
+                 */
+                    $diningSession = DiningSession::query()
+                        ->where('table_id', $table->id)
+                        ->where('status', 'open')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$diningSession) {
+                        // Do not add orders after billing has started.
+                        // $hasBillingSession = DiningSession::query()
+                        //     ->where('table_id', $table->id)
+                        //     ->where('status', 'billing')
+                        //     ->exists();
+
+                        // if ($hasBillingSession) {
+                        //     abort(
+                        //         422,
+                        //         'This table is currently being billed.'
+                        //     );
+                        // }
+
+                        // Start a new session if none is open.
+                        $diningSession = DiningSession::create([
+                            'table_id' => $table->id,
+                            'guest_count' => 1,
+                            'status' => 'open',
+                            'subtotal' => $order->subtotal ?? 0,
+                            'discount_amount' => $order->discount_amount ?? 0,
+                            'total' => $order->total_amount ?? 0,
+                            'opened_at' => now(),
+                        ]);
+                    }
+
+                    // Attach this order to the existing or new session.
+                    $order->table_id = $table->id;
+                    $order->dining_session_id = $diningSession->id;
+                }
+
+                $order->status = 'confirmed';
+            } else {
+                $order->status = 'cancelled';
+            }
+
+            $order->save();
+
+            return $order->fresh([
+                'items.menuItem',
+                'items.modifiers.modifier',
+                'items.discounts.discount',
+                'payments.paymentMethod',
+                'discounts.discount',
+                'customer',
+                'table',
+                'cashier',
+                'location',
+                'orderType',
+                'orderSource',
+                'diningSession.table',
+            ]);
+        });
     }
+
+    // Run
 
     public function print(Order $order)
     {
@@ -2420,23 +2578,10 @@ class OrderController extends Controller
             $validated,
             $order
         ) {
-
-            /*
-        |--------------------------------------------------------------------------
-        | Lock order
-        |--------------------------------------------------------------------------
-        */
-
+            // Lock order.
             $order = Order::query()
                 ->lockForUpdate()
                 ->findOrFail($order->id);
-
-
-            /*
-        |--------------------------------------------------------------------------
-        | Make sure this is a QR dine-in order
-        |--------------------------------------------------------------------------
-        */
 
             $order->load([
                 'orderType',
@@ -2444,206 +2589,117 @@ class OrderController extends Controller
                 'diningSession',
             ]);
 
-            $orderTypeCode =
-                strtolower(
-                    (string) $order->orderType?->code
-                );
+            // Validate order type and source.
+            $orderTypeCode = strtolower(
+                (string) $order->orderType?->code
+            );
 
-            $sourceName =
-                strtolower(
-                    (string) $order->orderSource?->name
-                );
-
+            $sourceName = strtolower(
+                (string) $order->orderSource?->name
+            );
 
             if ($orderTypeCode !== 'dine_in') {
-
                 abort(
                     422,
                     'Only dine-in orders can have a table assigned.'
                 );
             }
 
-
             if ($sourceName !== 'qr order') {
-
                 abort(
                     422,
                     'Only QR orders can have a table assigned.'
                 );
             }
 
-
-            if (
-                strtolower(
-                    (string) $order->status
-                ) !== 'confirmed'
-            ) {
-
+            if (strtolower((string) $order->status) !== 'confirmed') {
                 abort(
                     422,
                     'Only confirmed orders can have a table assigned.'
                 );
             }
 
-
-            /*
-        |--------------------------------------------------------------------------
-        | Already assigned?
-        |--------------------------------------------------------------------------
-        */
-
-            if (
-                $order->table_id ||
-                $order->dining_session_id
-            ) {
-
+            // Do not assign an order more than once.
+            if ($order->table_id || $order->dining_session_id) {
                 abort(
                     422,
                     'A table is already assigned to this order.'
                 );
             }
 
-
             /*
-        |--------------------------------------------------------------------------
-        | Lock selected table
-        |--------------------------------------------------------------------------
-        */
-
+         * Lock the table first so concurrent assignments to this
+         * table serialize before checking or creating a session.
+         */
             $table = RestaurantTable::query()
                 ->lockForUpdate()
-                ->findOrFail(
-                    $validated['table_id']
-                );
-
+                ->findOrFail($validated['table_id']);
 
             /*
-        |--------------------------------------------------------------------------
-        | Make sure table isn't already occupied
-        |--------------------------------------------------------------------------
-        |
-        | We determine occupancy from active dining sessions rather
-        | than trusting a potentially stale table status.
-        |
-        */
+         * If the table already has an open session, reuse it.
+         */
+            $diningSession = DiningSession::query()
+                ->where('table_id', $table->id)
+                ->where('status', 'open')
+                ->lockForUpdate()
+                ->first();
 
-            $tableOccupied =
-                DiningSession::query()
-                ->where(
-                    'table_id',
-                    $table->id
-                )
-                ->whereIn(
-                    'status',
-                    [
-                        'open',
-                        'billing',
-                    ]
-                )
-                ->exists();
+            if (!$diningSession) {
+                /*
+             * Do not attach new orders while the table is being billed.
+             */
+                $hasBillingSession = DiningSession::query()
+                    ->where('table_id', $table->id)
+                    ->where('status', 'billing')
+                    ->exists();
 
+                if ($hasBillingSession) {
+                    abort(
+                        422,
+                        'This table is currently being billed.'
+                    );
+                }
 
-            if ($tableOccupied) {
-
-                abort(
-                    422,
-                    'This table is already occupied.'
-                );
+                /*
+             * No open or billing session exists, so create a new one.
+             */
+                $diningSession = DiningSession::create([
+                    'table_id' => $table->id,
+                    'guest_count' => 1,
+                    'status' => 'open',
+                    'subtotal' => $order->subtotal ?? 0,
+                    'discount_amount' => $order->discount_amount ?? 0,
+                    'total' => $order->total_amount ?? 0,
+                    'opened_at' => now(),
+                ]);
             }
 
-
             /*
-        |--------------------------------------------------------------------------
-        | Create dining session
-        |--------------------------------------------------------------------------
-        */
+         * Assign the order to the selected table and its session.
+         * An occupied table with an open session is allowed.
+         */
+            $order->table_id = $table->id;
+            $order->dining_session_id = $diningSession->id;
+            $order->save();
 
-            $diningSession =
-                DiningSession::create([
-
-                    'table_id' =>
-                    $table->id,
-
-                    'guest_count' =>
-                    1,
-
-                    'status' =>
-                    'open',
-
-                    'subtotal' =>
-                    $order->subtotal ?? 0,
-
-                    'discount_amount' =>
-                    $order->discount_amount ?? 0,
-
-                    'total' =>
-                    $order->total_amount ?? 0,
-
-                    'opened_at' =>
-                    now(),
-
-                ]);
-
-
-            /*
-        |--------------------------------------------------------------------------
-        | Attach order to table + session
-        |--------------------------------------------------------------------------
-        */
-
-            $order->update([
-
-                'table_id' =>
-                $table->id,
-
-                'dining_session_id' =>
-                $diningSession->id,
-
-            ]);
-
-
-            /*
-        |--------------------------------------------------------------------------
-        | Reload complete order
-        |--------------------------------------------------------------------------
-        */
-
-            $order->load([
-
+            // Reload complete order.
+            return $order->fresh([
                 'items.menuItem',
-
                 'items.modifiers.modifier',
-
                 'items.discounts.discount',
-
                 'payments.paymentMethod',
-
                 'discounts.discount',
-
                 'customer',
-
                 'table',
-
                 'cashier',
-
                 'location',
-
                 'orderType',
-
                 'orderSource',
-
                 'diningSession.table',
-
             ]);
-
-
-            return $order;
         });
 
-
-        return new OrderResource(
-            $result
-        );
+        return new OrderResource($result);
     }
 
     public function history(Order $order)
@@ -2652,7 +2708,7 @@ class OrderController extends Controller
             ->with('user:id,name')
             ->latest()
             ->paginate(50);
-            
+
         return response()->json($history);
     }
 }
