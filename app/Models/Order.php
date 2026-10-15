@@ -49,7 +49,9 @@ class Order extends Model
         'dining_session_id',
         'number_plate',
         'external_id',
-        'external_source'
+        'external_source',
+        'cancellation_reason',
+        'cancelled_at'
     ];
 
     protected $casts = [

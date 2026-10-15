@@ -110,26 +110,24 @@ class DiningSessionController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function show(
-        DiningSession $diningSession
-    ) {
+   public function show(DiningSession $diningSession)
+    {
         $diningSession->load([
             'table',
 
             'orders' => function ($query) {
-                $query->with([
-                    'items.menuItem',
-                    'items.modifiers.modifier',
-                    'items.discounts.discount',
-                    'discounts.discount',
-                ]);
+                $query->where('status', '!=', 'cancelled')
+                    ->with([
+                        'items.menuItem',
+                        'items.modifiers.modifier',
+                        'items.discounts.discount',
+                        'discounts.discount',
+                    ]);
             },
         ]);
 
         return response()->json([
-            'data' => $this->transformSession(
-                $diningSession
-            ),
+            'data' => $this->transformSession($diningSession),
         ]);
     }
 
@@ -467,17 +465,19 @@ class DiningSessionController extends Controller
 
     public function destroy(DiningSession $diningSession): JsonResponse
     {
-       
-        if ($diningSession->orders()->exists()) {
+        // Only prevent closing if active (non-cancelled) orders exist.
+        if ($diningSession->orders()
+            ->where('status', '!=', 'cancelled')
+            ->exists()) {
             return response()->json([
-                'message' => 'Cannot close a session that has orders.',
+                'message' => 'Cannot close a session that has active orders.',
             ], 422);
         }
 
         $diningSession->delete();
 
         return response()->json([
-            'message' =>  'Dining session Closed',
+            'message' => 'Dining session closed successfully.',
         ]);
     }
 }

@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -2711,4 +2712,64 @@ class OrderController extends Controller
 
         return response()->json($history);
     }
+
+    public function cancelConfirmed(Request $request, Order $order)
+{
+    $validated = $request->validate([
+        'reason' => ['required', 'string', 'max:500'],
+    ]);
+
+    $result = DB::transaction(function () use ($order, $validated) {
+        $order = Order::whereKey($order->id)
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        // if ($order->status !== 'confirmed') {
+        //     throw ValidationException::withMessages([
+        //         'status' => 'Only confirmed orders can be cancelled.',
+        //     ]);
+        // }
+
+        if ($order->payments()->exists()) {
+            throw ValidationException::withMessages([
+                'payment' => 'An order with a payment cannot be cancelled.',
+            ]);
+        }
+
+        $order->status = 'cancelled';
+        $order->cancellation_reason = $validated['reason'];
+        $order->cancelled_at = now();
+        $order->save();
+
+        // Check whether other active orders remain in this session.
+        $diningSession = $order->diningSession;
+
+        if ($diningSession) {
+            $hasActiveOrders = $diningSession->orders()
+                ->where('status', '!=', 'cancelled')
+                ->exists();
+
+            if (! $hasActiveOrders) {
+                $diningSession->update([
+                    'status' => 'closed',
+                ]);
+
+            }
+        }
+
+        
+            $this->orderHistoryService->log(
+                $order,
+                'order_cancelled',
+                'Order Cancelled'
+            );
+
+        return $order;
+    });
+
+    return response()->json([
+        'message' => 'Order cancelled successfully.',
+        'order' => $result,
+    ]);
+}
 }

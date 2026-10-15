@@ -253,6 +253,11 @@ Route::middleware('auth:sanctum')->group(function () {
         'select',
     ]);
 
+    Route::patch(
+        '/orders/{order}/cancel-confirmed',
+        [OrderController::class, 'cancelConfirmed']
+    );
+
 
     Route::prefix('imports')
     ->group(function () {

@@ -42,6 +42,8 @@ class OrderResource extends JsonResource
             'dining_session_id' =>$this->dining_session_id,
             'order_source_id'=>$this->order_source_id,
             'ordered_at' => optional($this->ordered_at)->format('Y-m-d H:i:s'),
+            'cancelled_at' => optional($this->ordered_at)->format('Y-m-d H:i:s'),
+            'cancellation_reason' => $this->cancellation_reason,
             'items' => $this->items->map(function ($item) {
                 return [
                     'id' => $item->id,
