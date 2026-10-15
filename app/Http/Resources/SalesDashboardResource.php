@@ -25,8 +25,16 @@ class SalesDashboardResource extends JsonResource
                 $this->resource['top_selling_items'],
             "top_selling_modifiers" =>
                 $this->resource['top_selling_modifiers'],
+            "top_grossing_modifiers" =>
+                $this->resource['top_grossing_modifiers'],
+            "top_grossing_items" =>
+                $this->resource['top_grossing_items'],
             "hourly_breakdown" =>
                 $this->resource['hourly_breakdown'],
+            "sales_by_payment_method" =>
+                $this->resource['sales_by_payment_method'],
+            "sales_by_category"=>$this->resource['sales_by_category'],
+            "sales_by_discount"=>$this->resource['sales_by_discount'],
         ];
     }
 }
