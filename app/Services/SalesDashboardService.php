@@ -83,6 +83,34 @@ class SalesDashboardService
                 DB::raw('order_items.quantity * menu_items.cost_price')
             );
 
+        $currentPaidModifiers = OrderItemModifier::query()
+            ->join('order_items', 'order_items.id', '=', 'order_item_modifiers.order_item_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
+            ->whereBetween('orders.ordered_at', [$from, $to])
+            ->when(
+                $request->filled('location_id'),
+                fn($q) =>
+                $q->where('orders.location_id', $request->location_id)
+            )
+            ->sum(
+                DB::raw('order_item_modifiers.quantity * modifiers.price')
+            );
+
+        $previousPaidModifiers = OrderItemModifier::query()
+            ->join('order_items', 'order_items.id', '=', 'order_item_modifiers.order_item_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
+            ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
+            ->when(
+                $request->filled('location_id'),
+                fn($q) =>
+                $q->where('orders.location_id', $request->location_id)
+            )
+            ->sum(
+                DB::raw('order_item_modifiers.quantity * modifiers.price')
+            );
+
         $grossSales = $currentOrders->sum('total_amount')
             + $currentDiscounts;
 
@@ -130,13 +158,13 @@ class SalesDashboardService
                 ),
 
                 $this->card(
-                    'Gross Profit',
-                    $currentTotalSales - $currentCogs,
+                    'Paid Modifiers',
+                    $currentPaidModifiers,
                     $this->percentage(
-                        $previousTotalSales - $previousCogs,
-                        $currentTotalSales - $currentCogs
+                        $previousPaidModifiers,
+                        $currentPaidModifiers
                     ),
-                    'profit',
+                    'modifiers',
                     true
                 ),
 
