@@ -363,10 +363,30 @@ class TablePaymentController extends Controller
                 );
 
             $remainingOrderAmount =
-                round(
-                    (float) $currentOrder->total_amount,
-                    2
-                );
+                $currentOrder
+                    ? round(
+                        (float) $currentOrder->total_amount,
+                        2
+                    )
+                    : 0;
+
+            while (
+                $currentOrder &&
+                $remainingOrderAmount <= 0.001
+            ) {
+                $currentOrder =
+                    $orders->get(
+                        ++$orderIndex
+                    );
+
+                $remainingOrderAmount =
+                    $currentOrder
+                        ? round(
+                            (float) $currentOrder->total_amount,
+                            2
+                        )
+                        : 0;
+            }
 
             foreach (
                 $paymentsInput as $paymentInput
@@ -382,6 +402,24 @@ class TablePaymentController extends Controller
                     $remainingPaymentAmount > 0.001 &&
                     $currentOrder
                 ) {
+
+                    if ($remainingOrderAmount <= 0.001) {
+                        $currentOrder =
+                            $orders->get(
+                                ++$orderIndex
+                            );
+
+                        $remainingOrderAmount =
+                            $currentOrder
+                                ? round(
+                                    (float)
+                                    $currentOrder->total_amount,
+                                    2
+                                )
+                                : 0;
+
+                        continue;
+                    }
 
                     /*
                     |--------------------------------------------------------------------------

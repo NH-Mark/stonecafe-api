@@ -1975,9 +1975,8 @@ class OrderController extends Controller
         $validated = $request->validate([
             'order_source_id' => 'nullable',
             'payments' => [
-                'required',
+                'sometimes',
                 'array',
-                'min:1',
             ],
 
             'payments.*.payment_method_id' => [
@@ -2001,6 +2000,7 @@ class OrderController extends Controller
             $validated,
             $order
         ) {
+            $requestPayments = $validated['payments'] ?? [];
 
             /*
         |--------------------------------------------------------------------------
@@ -2059,10 +2059,21 @@ class OrderController extends Controller
         |
         */
 
-            $paymentAmount = collect($validated['payments'])
+            $paymentAmount = collect($requestPayments)
                 ->sum(function ($payment) {
                     return (float) $payment['amount'];
                 });
+
+            if (
+                count($requestPayments) === 0 &&
+                round($remainingAmount, 2) > 0
+            ) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payments' => [
+                        'At least one payment is required when there is a remaining balance.',
+                    ],
+                ]);
+            }
 
 
             /*
@@ -2094,7 +2105,7 @@ class OrderController extends Controller
 
             $payments = [];
 
-            foreach ($validated['payments'] as $paymentData) {
+            foreach ($requestPayments as $paymentData) {
 
                 $payments[] = $order->payments()->create([
                     'payment_method_id' =>
