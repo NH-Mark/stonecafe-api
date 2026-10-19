@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DailySalesEmailController;
+use App\Http\Controllers\Api\EmployeeLogController;
 use App\Http\Controllers\Api\DiningSessionController;
 use App\Http\Controllers\Api\DiscountController;
 use App\Http\Controllers\Api\EventController;
@@ -59,6 +60,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('/employee-logs', [EmployeeLogController::class, 'index']);
+    Route::put('/employee-logs/{user}/suspend', [EmployeeLogController::class, 'suspend']);
+    Route::put('/employee-logs/{user}/restore', [EmployeeLogController::class, 'restore']);
 
     Route::apiResource('roles', RoleController::class);
 

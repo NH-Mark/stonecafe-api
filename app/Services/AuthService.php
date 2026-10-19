@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
+use App\Models\EmployeeLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 
 class AuthService
@@ -34,13 +37,30 @@ class AuthService
             throw new UnauthorizedHttpException('', 'Invalid email or password');
         }
 
-        $user = $request->user()->load('location');
+        $user = Auth::user()->load('location');
 
-        $token = $user->createToken('next-app')->plainTextToken;
+        if (! $user->status) {
+            Auth::logout();
+
+            throw new UnauthorizedHttpException(
+                '',
+                'Your account is inactive. Please contact an administrator.'
+            );
+        }
+
+        $token = $user->createToken('next-app');
+
+        EmployeeLog::create([
+            'user_id' => $user->id,
+            'personal_access_token_id' => $token->accessToken->id,
+            'signed_in_at' => Carbon::now(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
 
         return [
             'message' => 'Login successful',
-            'token' => $token,
+            'token' => $token->plainTextToken,
             'user' => new UserResource($user),
         ];
     }
@@ -58,7 +78,20 @@ class AuthService
 
     public function logout($request): array
     {
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->user()->currentAccessToken();
+
+        if ($token) {
+            EmployeeLog::query()
+                ->where('user_id', $request->user()->id)
+                ->where('personal_access_token_id', $token->id)
+                ->whereNull('signed_out_at')
+                ->latest('signed_in_at')
+                ->first()?->update([
+                    'signed_out_at' => Carbon::now(),
+                ]);
+        }
+
+        $token?->delete();
 
         return [
             'message' => 'Logged out successfully'
