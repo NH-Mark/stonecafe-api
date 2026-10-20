@@ -40,8 +40,11 @@ class SalesDashboardService
                 $previousTo
             );
 
-        $currentOrders = Order::query();
-        $previousOrders = Order::query();
+        $currentOrders = Order::query()
+            ->where('status', Order::STATUS_CONFIRMED);
+
+        $previousOrders = Order::query()
+            ->where('status', Order::STATUS_CONFIRMED);
 
         $this->applyFilters($currentOrders, $request, $from, $to);
         $this->applyFilters($previousOrders, $request, $previousFrom, $previousTo);
@@ -61,6 +64,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
             ->whereBetween('orders.ordered_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_CONFIRMED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -74,6 +78,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
             ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
+            ->where('orders.status', Order::STATUS_CONFIRMED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -88,6 +93,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_CONFIRMED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -102,6 +108,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
+            ->where('orders.status', Order::STATUS_CONFIRMED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -276,6 +283,7 @@ class SalesDashboardService
     private function applyFilters($query, Request $request, Carbon $from, Carbon $to): void
     {
         $query->whereBetween('ordered_at', [$from, $to]);
+        $query->where('status', Order::STATUS_CONFIRMED);
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->location_id);
@@ -1072,7 +1080,8 @@ class SalesDashboardService
                 '=',
                 'payments.payment_method_id'
             )
-            ->whereBetween('payments.paid_at', [$from, $to]);
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_CONFIRMED);
 
         // Apply dashboard filters
         if ($request->filled('location_id')) {
@@ -1316,6 +1325,8 @@ class SalesDashboardService
         $query,
         Request $request
     ): void {
+        $query->where('orders.status', Order::STATUS_CONFIRMED);
+
         if ($request->filled('location_id')) {
             $query->where(
                 'orders.location_id',
