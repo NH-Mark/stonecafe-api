@@ -611,6 +611,122 @@
                     @endif
 
 
+                    {{-- SALES BY DISCOUNT --}}
+
+                    @php
+                    $discountSales = collect($dashboard['sales_by_discount'] ?? [])
+                    ->filter(function ($item) {
+                    return (float) ($item['value'] ?? 0) > 0;
+                    })
+                    ->sortByDesc(function ($item) {
+                    return (float) ($item['value'] ?? 0);
+                    })
+                    ->values();
+                    @endphp
+
+                    @if($discountSales->isNotEmpty())
+
+                    <tr>
+
+                        <td style="padding:25px 30px 10px;">
+
+                            <h3
+                                style="
+                    margin:0 0 15px;
+                    font-size:16px;
+                ">
+                                Discount Usage
+                            </h3>
+
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0">
+
+                                <tr
+                                    style="
+                        background:#faf9f7;
+                    ">
+
+                                    <td
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Discount
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Uses
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Value
+                                    </td>
+
+                                </tr>
+
+                                @foreach($discountSales as $item)
+
+                                <tr>
+
+                                    <td
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                            ">
+                                        {{ $item['discount_name'] ?? 'Unknown' }}
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                color:#81786f;
+                            ">
+                                        {{ (int) ($item['qty'] ?? 0) }}
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                font-weight:bold;
+                            ">
+                                        QAR {{ number_format((float) ($item['value'] ?? 0), 2) }}
+                                    </td>
+
+                                </tr>
+
+                                @endforeach
+
+                            </table>
+
+                        </td>
+
+                    </tr>
+
+                    @endif
+
+
                     {{-- TOP SELLING ITEMS --}}
 
                     @php
