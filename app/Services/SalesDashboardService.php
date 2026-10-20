@@ -41,10 +41,10 @@ class SalesDashboardService
             );
 
         $currentOrders = Order::query()
-            ->where('status', Order::STATUS_CONFIRMED);
+            ->where('status', Order::STATUS_COMPLETED);
 
         $previousOrders = Order::query()
-            ->where('status', Order::STATUS_CONFIRMED);
+            ->where('status', Order::STATUS_COMPLETED);
 
         $this->applyFilters($currentOrders, $request, $from, $to);
         $this->applyFilters($previousOrders, $request, $previousFrom, $previousTo);
@@ -55,7 +55,6 @@ class SalesDashboardService
         $previousRefunds = Refund::query()
             ->whereBetween('created_at', [$previousFrom, $previousTo]);
 
-
         $currentTotalSales = $currentOrders->sum('subtotal') - $currentDiscounts;
 
         $previousTotalSales = $previousOrders->sum('subtotal') - $previousDiscounts;
@@ -64,7 +63,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
             ->whereBetween('orders.ordered_at', [$from, $to])
-            ->where('orders.status', Order::STATUS_CONFIRMED)
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -78,7 +77,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
             ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
-            ->where('orders.status', Order::STATUS_CONFIRMED)
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -93,7 +92,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$from, $to])
-            ->where('orders.status', Order::STATUS_CONFIRMED)
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -108,7 +107,7 @@ class SalesDashboardService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
-            ->where('orders.status', Order::STATUS_CONFIRMED)
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -283,18 +282,14 @@ class SalesDashboardService
     private function applyFilters($query, Request $request, Carbon $from, Carbon $to): void
     {
         $query->whereBetween('ordered_at', [$from, $to]);
-        $query->where('status', Order::STATUS_CONFIRMED);
+        $query->where('status', Order::STATUS_COMPLETED);
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->location_id);
         }
 
         if ($request->filled('order_type')) {
-
-            $query->where(
-                'order_type_id',
-                $request->order_type
-            );
+            $query->where('order_type_id', $request->order_type);
         }
 
         if ($request->filled('order_source_id')) {
@@ -303,10 +298,6 @@ class SalesDashboardService
 
         if ($request->filled('payment_method_id')) {
             $query->where('payment_method_id', $request->payment_method_id);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
         }
     }
 
@@ -793,6 +784,7 @@ class SalesDashboardService
                 '=',
                 'order_discounts.order_id'
             )
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->whereBetween(
                 'orders.ordered_at',
                 [$from, $to]
@@ -818,6 +810,7 @@ class SalesDashboardService
                 '=',
                 'order_items.order_id'
             )
+            ->where('orders.status', Order::STATUS_COMPLETED)
             ->whereBetween(
                 'orders.ordered_at',
                 [$from, $to]
@@ -884,21 +877,6 @@ class SalesDashboardService
                 $request->payment_method_id
             );
         }
-
-
-        if ($request->filled('status')) {
-
-            $orderDiscounts->where(
-                'orders.status',
-                $request->status
-            );
-
-            $itemDiscounts->where(
-                'orders.status',
-                $request->status
-            );
-        }
-
 
         /*
     |--------------------------------------------------------------------------
@@ -1081,7 +1059,7 @@ class SalesDashboardService
                 'payments.payment_method_id'
             )
             ->whereBetween('payments.paid_at', [$from, $to])
-            ->where('orders.status', Order::STATUS_CONFIRMED);
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
         // Apply dashboard filters
         if ($request->filled('location_id')) {
@@ -1102,13 +1080,6 @@ class SalesDashboardService
             $query->where(
                 'orders.order_source_id',
                 $request->order_source_id
-            );
-        }
-
-        if ($request->filled('status')) {
-            $query->where(
-                'orders.status',
-                $request->status
             );
         }
 
@@ -1325,7 +1296,7 @@ class SalesDashboardService
         $query,
         Request $request
     ): void {
-        $query->where('orders.status', Order::STATUS_CONFIRMED);
+        $query->where('orders.status', Order::STATUS_COMPLETED);
 
         if ($request->filled('location_id')) {
             $query->where(
@@ -1352,13 +1323,6 @@ class SalesDashboardService
             $query->where(
                 'orders.payment_method_id',
                 $request->payment_method_id
-            );
-        }
-
-        if ($request->filled('status')) {
-            $query->where(
-                'orders.status',
-                $request->status
             );
         }
     }
