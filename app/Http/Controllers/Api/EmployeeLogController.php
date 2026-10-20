@@ -13,9 +13,9 @@ class EmployeeLogController extends Controller
     public function index()
     {
         return EmployeeLog::query()
-            ->whereHas('user.roles', function ($query) {
-                $query->where('name', 'Regular');
-            })
+            // ->whereHas('user.roles', function ($query) {
+            //     $query->where('name', 'Regular');
+            // })
             ->with([
                 'user:id,name,email,status',
                 'user.roles:id,name',
