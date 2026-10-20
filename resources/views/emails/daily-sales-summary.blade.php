@@ -252,7 +252,7 @@
                                 @foreach($dashboard['stats'] as $stat)
 
                                 @if(in_array($stat['title'], [
-                                'Gross Sales',
+                                'Paid Modifiers',
                                 'Average Order',
                                 'Discounts',
                                 'Refunds'
@@ -364,6 +364,238 @@
                                 font-weight:bold;
                             ">
                                         QAR {{ number_format($item['value'], 2) }}
+                                    </td>
+
+                                </tr>
+
+                                @endforeach
+
+                            </table>
+
+                        </td>
+
+                    </tr>
+
+                    @endif
+
+
+                    {{-- SALES BY PAYMENT TYPE --}}
+
+                    @php
+                    $paymentMethodSales = collect($dashboard['sales_by_payment_method'] ?? [])
+                    ->filter(function ($item) {
+                    return (float) ($item['value'] ?? 0) > 0;
+                    })
+                    ->sortByDesc(function ($item) {
+                    return (float) ($item['value'] ?? 0);
+                    })
+                    ->values();
+                    @endphp
+
+                    @if($paymentMethodSales->isNotEmpty())
+
+                    <tr>
+
+                        <td style="padding:25px 30px 10px;">
+
+                            <h3
+                                style="
+                    margin:0 0 15px;
+                    font-size:16px;
+                ">
+                                Sales by Payment Type
+                            </h3>
+
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0">
+
+                                <tr
+                                    style="
+                        background:#faf9f7;
+                    ">
+
+                                    <td
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Payment Type
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Transactions
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Sales
+                                    </td>
+
+                                </tr>
+
+                                @foreach($paymentMethodSales as $item)
+
+                                <tr>
+
+                                    <td
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                            ">
+                                        {{ $item['name'] }}
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                color:#81786f;
+                            ">
+                                        {{ $item['payment_count'] ?? 0 }}
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                font-weight:bold;
+                            ">
+                                        QAR {{ number_format($item['value'], 2) }}
+                                    </td>
+
+                                </tr>
+
+                                @endforeach
+
+                            </table>
+
+                        </td>
+
+                    </tr>
+
+                    @endif
+
+
+                    {{-- SALES BY CATEGORY --}}
+
+                    @php
+                    $categorySales = collect($dashboard['sales_by_category'] ?? [])
+                    ->filter(function ($item) {
+                    return (float) ($item['value'] ?? 0) > 0;
+                    })
+                    ->sortByDesc(function ($item) {
+                    return (float) ($item['value'] ?? 0);
+                    })
+                    ->values();
+                    @endphp
+
+                    @if($categorySales->isNotEmpty())
+
+                    <tr>
+
+                        <td style="padding:25px 30px 10px;">
+
+                            <h3
+                                style="
+                    margin:0 0 15px;
+                    font-size:16px;
+                ">
+                                Sales by Category
+                            </h3>
+
+                            <table
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0">
+
+                                <tr
+                                    style="
+                        background:#faf9f7;
+                    ">
+
+                                    <td
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Category
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Qty
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                            padding:10px;
+                            font-size:11px;
+                            color:#81786f;
+                        ">
+                                        Sales
+                                    </td>
+
+                                </tr>
+
+                                @foreach($categorySales as $item)
+
+                                <tr>
+
+                                    <td
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                            ">
+                                        {{ $item['category_name'] ?? 'Uncategorized' }}
+                                    </td>
+
+                                    <td
+                                        align="center"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                color:#81786f;
+                            ">
+                                        {{ number_format((float) ($item['qty'] ?? 0), 2) }}
+                                    </td>
+
+                                    <td
+                                        align="right"
+                                        style="
+                                padding:10px;
+                                border-bottom:1px solid #eeeae6;
+                                font-size:13px;
+                                font-weight:bold;
+                            ">
+                                        QAR {{ number_format((float) ($item['value'] ?? 0), 2) }}
                                     </td>
 
                                 </tr>
