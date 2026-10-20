@@ -926,6 +926,7 @@ class OrderController extends Controller
                 'location_id' => $order->location_id,
                 'order_source_id' => $order->order_source_id,
                 'customer_id' => $order->customer_id,
+                'status' => $order->status,
                 'kitchen_status' => $order->kitchen_status,
                 'payment_status' => $order->payment_status,
                 'table_id' => $order->table_id,
@@ -960,6 +961,21 @@ class OrderController extends Controller
                     $request->input('customer_id');
             }
 
+            if ($request->has('status')) {
+                $status = $request->input('status');
+
+                if (! in_array($status, [
+                    Order::STATUS_PENDING,
+                    Order::STATUS_CONFIRMED,
+                    Order::STATUS_COMPLETED,
+                    Order::STATUS_CANCELLED,
+                ], true)) {
+                    abort(422, 'Invalid order status.');
+                }
+
+                $order->status = $status;
+            }
+
             if ($request->has('kitchen_status')) {
                 $order->kitchen_status =
                     $request->input('kitchen_status');
@@ -990,7 +1006,7 @@ class OrderController extends Controller
                     $request->input('notes');
             }
 
-            $newOrderValues = ['order_type_id' => $order->order_type_id, 'location_id' => $order->location_id, 'order_source_id' => $order->order_source_id, 'customer_id' => $order->customer_id, 'kitchen_status' => $order->kitchen_status, 'payment_status' => $order->payment_status, 'table_id' => $order->table_id, 'number_plate' => $order->number_plate, 'dining_session_id' => $order->dining_session_id, 'notes' => $order->notes,];
+            $newOrderValues = ['order_type_id' => $order->order_type_id, 'location_id' => $order->location_id, 'order_source_id' => $order->order_source_id, 'customer_id' => $order->customer_id, 'status' => $order->status, 'kitchen_status' => $order->kitchen_status, 'payment_status' => $order->payment_status, 'table_id' => $order->table_id, 'number_plate' => $order->number_plate, 'dining_session_id' => $order->dining_session_id, 'notes' => $order->notes,];
             if ($oldOrderValues != $newOrderValues) {
                 $this->orderHistoryService->log($order, 'order_updated', 'Order details changed', $oldOrderValues, $newOrderValues);
             }
@@ -2742,11 +2758,11 @@ class OrderController extends Controller
         //     ]);
         // }
 
-        if ($order->payments()->exists()) {
-            throw ValidationException::withMessages([
-                'payment' => 'An order with a payment cannot be cancelled.',
-            ]);
-        }
+        // if ($order->payments()->exists()) {
+        //     throw ValidationException::withMessages([
+        //         'payment' => 'An order with a payment cannot be cancelled.',
+        //     ]);
+        // }
 
         $order->status = 'cancelled';
         $order->cancellation_reason = $validated['reason'];
