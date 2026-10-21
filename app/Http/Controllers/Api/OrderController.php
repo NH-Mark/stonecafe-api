@@ -182,6 +182,21 @@ class OrderController extends Controller
 
                         break;
 
+                    case 'payment_method':
+                        $query->whereHas(
+                            'payments.paymentMethod',
+                            function ($q) use ($value) {
+                                $q->where(
+                                    'name',
+                                    'like',
+                                    "%{$value}%"
+                                );
+                            }
+                        );
+
+                        break;
+
+
                     case 'total':
 
                         $query->where(
