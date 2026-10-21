@@ -25,7 +25,7 @@ class ThrowdownNotSelectedMail extends Mailable
     public function content(): \Illuminate\Mail\Mailables\Content
     {
         return new \Illuminate\Mail\Mailables\Content(
-            view: 'emails.events.throwdown-non-selected',
+            view: 'emails.events.throwdown-not-selected',
             with: [
                 'registration' => $this->registration,
                 'firstName' => preg_split(

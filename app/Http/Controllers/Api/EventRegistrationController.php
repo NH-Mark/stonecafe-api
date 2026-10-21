@@ -30,6 +30,7 @@ class EventRegistrationController extends Controller
             ->with([
                 'event',
                 'timeSlot',
+                'emailLogs',
             ]);
 
         /*

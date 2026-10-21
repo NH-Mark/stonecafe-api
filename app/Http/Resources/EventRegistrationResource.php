@@ -67,6 +67,38 @@ class EventRegistrationResource extends JsonResource
             'metadata' =>
                 $this->metadata,
 
+            'mail_status' => $this->whenLoaded(
+                'emailLogs',
+                function () {
+                    $latest = $this->emailLogs
+                        ->sortByDesc('id')
+                        ->first();
+
+                    return $latest?->status;
+                }
+            ),
+
+            'mail_logs' => $this->whenLoaded(
+                'emailLogs',
+                function () {
+                    return $this->emailLogs
+                        ->sortByDesc('id')
+                        ->values()
+                        ->map(function ($log) {
+                            return [
+                                'id' => $log->id,
+                                'email_type' => $log->email_type,
+                                'recipient_email' => $log->recipient_email,
+                                'status' => $log->status,
+                                'queued_at' => $log->queued_at,
+                                'sent_at' => $log->sent_at,
+                                'failed_at' => $log->failed_at,
+                                'error_message' => $log->error_message,
+                            ];
+                        });
+                }
+            ),
+
             'event' => $this->whenLoaded(
                 'event',
                 function () {
