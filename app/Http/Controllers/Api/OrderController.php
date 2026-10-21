@@ -196,7 +196,6 @@ class OrderController extends Controller
 
                         break;
 
-
                     case 'total':
 
                         $query->where(
