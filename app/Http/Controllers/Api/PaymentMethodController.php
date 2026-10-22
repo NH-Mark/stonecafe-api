@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PaymentMethodResource;
 use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentMethodController extends Controller
 {
@@ -101,7 +102,11 @@ class PaymentMethodController extends Controller
     */
 
         $methods = $query
-            ->latest()
+            ->when(
+                Schema::hasColumn('payment_methods', 'sort_order'),
+                fn($q) => $q->orderBy('sort_order')->orderBy('id'),
+                fn($q) => $q->orderBy('id')
+            )
             ->paginate($perPage);
 
         return PaymentMethodResource::collection(
@@ -111,7 +116,16 @@ class PaymentMethodController extends Controller
 
     public function listPaymentMethods()
     {
-        $payment_methods = PaymentMethod::where('status',1)->get();
+        $query = PaymentMethod::query()->where('status', 1);
+
+        $payment_methods = $query
+            ->when(
+                Schema::hasColumn('payment_methods', 'sort_order'),
+                fn($q) => $q->orderBy('sort_order')->orderBy('id'),
+                fn($q) => $q->orderBy('id')
+            )
+            ->get();
+
         return PaymentMethodResource::collection($payment_methods);
     }
 
@@ -128,6 +142,10 @@ class PaymentMethodController extends Controller
                 'required',
                 'boolean',
             ],
+            'sort_order' => [
+                'nullable',
+                'integer',
+            ]
         ]);
 
         $validated['code'] = strtoupper(
@@ -157,6 +175,10 @@ class PaymentMethodController extends Controller
                 'required',
                 'boolean',
             ],
+            'sort_order' => [
+                'nullable',
+                'integer',
+            ]
         ]);
 
 

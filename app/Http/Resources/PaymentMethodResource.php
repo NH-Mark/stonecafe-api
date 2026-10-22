@@ -13,15 +13,13 @@ class PaymentMethodResource extends JsonResource
     {
 
         return [
-
             'id' => $this->id,
             'name' => $this->name,
             'name_ar' => $this->name_ar,
             'code'=>$this->code,
             'status'=>$this->status,
             'created_at' => $this->created_at,
-          
-
+            'sort_order' => $this->sort_order,
         ];
 
     }
