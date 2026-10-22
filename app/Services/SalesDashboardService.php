@@ -93,6 +93,7 @@ class SalesDashboardService
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$from, $to])
             ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid')
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -108,6 +109,7 @@ class SalesDashboardService
             ->join('modifiers', 'modifiers.id', '=', 'order_item_modifiers.modifier_id')
             ->whereBetween('orders.ordered_at', [$previousFrom, $previousTo])
             ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid')
             ->when(
                 $request->filled('location_id'),
                 fn($q) =>
@@ -283,6 +285,7 @@ class SalesDashboardService
     {
         $query->whereBetween('ordered_at', [$from, $to]);
         $query->where('status', Order::STATUS_COMPLETED);
+        $query->where('payment_status', 'paid');
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->location_id);
@@ -785,6 +788,7 @@ class SalesDashboardService
                 'order_discounts.order_id'
             )
             ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid')
             ->whereBetween(
                 'orders.ordered_at',
                 [$from, $to]
@@ -811,6 +815,7 @@ class SalesDashboardService
                 'order_items.order_id'
             )
             ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid')
             ->whereBetween(
                 'orders.ordered_at',
                 [$from, $to]
@@ -1297,6 +1302,7 @@ class SalesDashboardService
         Request $request
     ): void {
         $query->where('orders.status', Order::STATUS_COMPLETED);
+        $query->where('orders.payment_status', 'paid');
 
         if ($request->filled('location_id')) {
             $query->where(
