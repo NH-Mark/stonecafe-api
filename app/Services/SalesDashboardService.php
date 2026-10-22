@@ -277,6 +277,11 @@ class SalesDashboardService
                 $from,
                 $to
             ),
+            'discount_details' => $this->discountDetails(
+                $request,
+                $from,
+                $to
+            ),
 
         ];
     }
@@ -349,11 +354,14 @@ class SalesDashboardService
 
     private function percentage($previous, $current): string
     {
-        if (!$previous) {
+        $previousValue = (float) $previous;
+        $currentValue = (float) $current;
+
+        if ($previousValue == 0.0 || $previous === null || $previous === '') {
             return '+0%';
         }
 
-        $change = (($current - $previous) / $previous) * 100;
+        $change = (($currentValue - $previousValue) / $previousValue) * 100;
 
         return sprintf('%+.1f%%', $change);
     }
@@ -1293,6 +1301,100 @@ class SalesDashboardService
                 ];
             })
             ->sortByDesc('value')
+            ->values()
+            ->toArray();
+    }
+
+    public function discountDetails(Request $request, ?Carbon $from = null, ?Carbon $to = null): array
+    {
+        if ($from === null || $to === null) {
+            [$from, $to] = $this->getDateRange($request);
+        }
+
+        $orderDiscounts = DB::table('order_discounts')
+            ->join('orders', 'orders.id', '=', 'order_discounts.order_id')
+            ->leftJoin('discounts', 'discounts.id', '=', 'order_discounts.discount_id')
+            ->leftJoin('order_types', 'order_types.id', '=', 'orders.order_type_id')
+            ->leftJoin('users', 'users.id', '=', 'orders.cashier_id')
+            ->whereBetween('orders.ordered_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid');
+
+        $itemDiscounts = DB::table('order_item_discounts')
+            ->join('order_items', 'order_items.id', '=', 'order_item_discounts.order_item_id')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('discounts', 'discounts.id', '=', 'order_item_discounts.discount_id')
+            ->leftJoin('order_types', 'order_types.id', '=', 'orders.order_type_id')
+            ->leftJoin('users', 'users.id', '=', 'orders.cashier_id')
+            ->whereBetween('orders.ordered_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED)
+            ->where('orders.payment_status', 'paid');
+
+        if ($request->filled('discount_id')) {
+            $orderDiscounts->where('order_discounts.discount_id', $request->discount_id);
+            $itemDiscounts->where('order_item_discounts.discount_id', $request->discount_id);
+        }
+
+        if ($request->filled('location_id')) {
+            $orderDiscounts->where('orders.location_id', $request->location_id);
+            $itemDiscounts->where('orders.location_id', $request->location_id);
+        }
+
+        if ($request->filled('order_type')) {
+            $orderDiscounts->where('orders.order_type_id', $request->order_type);
+            $itemDiscounts->where('orders.order_type_id', $request->order_type);
+        }
+
+        if ($request->filled('order_source_id')) {
+            $orderDiscounts->where('orders.order_source_id', $request->order_source_id);
+            $itemDiscounts->where('orders.order_source_id', $request->order_source_id);
+        }
+
+        if ($request->filled('payment_method_id')) {
+            $orderDiscounts->where('orders.payment_method_id', $request->payment_method_id);
+            $itemDiscounts->where('orders.payment_method_id', $request->payment_method_id);
+        }
+
+        $orderRows = $orderDiscounts
+            ->selectRaw("
+                DATE(orders.ordered_at) as date,
+                orders.order_no,
+                order_types.name as order_type,
+                COALESCE(users.name, 'Unknown') as user_name,
+                COALESCE(discounts.name, 'Unknown') as discount_name,
+                'order' as scope,
+                'order_level' as discount_type,
+                order_discounts.amount as discount_amount
+            ")
+            ->get();
+
+        $itemRows = $itemDiscounts
+            ->selectRaw("
+                DATE(orders.ordered_at) as date,
+                orders.order_no,
+                order_types.name as order_type,
+                COALESCE(users.name, 'Unknown') as user_name,
+                COALESCE(discounts.name, 'Unknown') as discount_name,
+                'item' as scope,
+                'item_level' as discount_type,
+                order_item_discounts.amount as discount_amount
+            ")
+            ->get();
+
+        return $orderRows
+            ->merge($itemRows)
+            ->map(function ($row) {
+                return [
+                    'date' => $row->date,
+                    'order_no' => $row->order_no,
+                    'order_type' => $row->order_type,
+                    'by' => $row->user_name ?? $row->by ?? 'Unknown',
+                    'discount_name' => $row->discount_name,
+                    'scope' => $row->scope,
+                    'discount_type' => $row->discount_type,
+                    'discount_amount' => (float) $row->discount_amount,
+                ];
+            })
             ->values()
             ->toArray();
     }

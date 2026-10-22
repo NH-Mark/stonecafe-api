@@ -35,6 +35,7 @@ class SalesDashboardResource extends JsonResource
                 $this->resource['sales_by_payment_method'],
             "sales_by_category"=>$this->resource['sales_by_category'],
             "sales_by_discount"=>$this->resource['sales_by_discount'],
+            "discount_detail"=>$this->resource['discount_details'] ?? [],
         ];
     }
 }
