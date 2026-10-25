@@ -21,6 +21,10 @@ class EventTimeSlotController extends Controller
                     'pending',
                     'confirmed',
                 ])
+                ->where(function ($query) {
+                    $query->whereNull('payment_status')
+                        ->orWhere('payment_status', '!=', 'failed');
+                })
                 ->sum('seat_count');
 
             $availableSeats = max(

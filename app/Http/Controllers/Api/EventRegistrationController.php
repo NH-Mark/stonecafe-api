@@ -343,8 +343,18 @@ class EventRegistrationController extends Controller
             ]);
         }
 
+        $isPaid = (float) $event->fee > 0;
+
+        /*
+         * Omakase requires a time slot and seat count.
+         */
+        $requiresTimeSlot = $event->registration_type === 'omakase_booking';
+
         /*
          * Prevent duplicate registration.
+         *
+         * For paid Omakase bookings, allow retry when the previous
+         * registration payment has failed.
          */
         $existingRegistration = EventRegistration::query()
             ->where('event_id', $event->id)
@@ -352,17 +362,19 @@ class EventRegistrationController extends Controller
             ->first();
 
         if ($existingRegistration) {
-            throw ValidationException::withMessages([
-                'email' => 'You are already registered for this event.',
-            ]);
+            $canRetryFailedOmakase =
+                $requiresTimeSlot &&
+                $isPaid &&
+                $existingRegistration->payment_status === 'failed';
+
+            if (!$canRetryFailedOmakase) {
+                throw ValidationException::withMessages([
+                    'email' => 'You are already registered for this event.',
+                ]);
+            }
+
+            $existingRegistration->delete();
         }
-
-        $isPaid = (float) $event->fee > 0;
-
-        /*
-         * Omakase requires a time slot and seat count.
-         */
-        $requiresTimeSlot = $event->registration_type === 'omakase_booking';
 
         if ($requiresTimeSlot) {
             if (empty($validated['event_time_slot_id'])) {
@@ -416,6 +428,10 @@ class EventRegistrationController extends Controller
                         'pending',
                         'confirmed',
                     ])
+                    ->where(function ($query) {
+                        $query->whereNull('payment_status')
+                            ->orWhere('payment_status', '!=', 'failed');
+                    })
                     ->sum('seat_count');
 
                 $availableSeats = max(
@@ -445,6 +461,10 @@ class EventRegistrationController extends Controller
                         'pending',
                         'confirmed',
                     ])
+                    ->where(function ($query) {
+                        $query->whereNull('payment_status')
+                            ->orWhere('payment_status', '!=', 'failed');
+                    })
                     ->sum('seat_count');
 
                 $requestedSeats = $requiresTimeSlot
@@ -568,6 +588,9 @@ class EventRegistrationController extends Controller
                     'payment_status' => $paymentUrl
                         ? 'pending'
                         : 'failed',
+                    'status' => $paymentUrl
+                        ? 'pending'
+                        : 'cancelled',
                 ]);
 
                 if (!$paymentUrl) {
@@ -584,6 +607,7 @@ class EventRegistrationController extends Controller
 
                 $registration->update([
                     'payment_status' => 'failed',
+                    'status' => 'cancelled',
                 ]);
             }
         }
@@ -702,6 +726,7 @@ class EventRegistrationController extends Controller
 
         $registration->update([
             'payment_status' => 'failed',
+            'status' => 'cancelled',
         ]);
 
         return response()->json([
