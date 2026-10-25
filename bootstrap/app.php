@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
-            'orders/skipcash/webhook/*',
+            'event-registrations/skipcash/webhook',
         ]);
         $middleware->alias([
             'role' => RoleMiddleware::class,

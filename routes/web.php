@@ -25,4 +25,9 @@ Route::post('/orders/skipcash/webhook/{order}', [
     'handle'
 ]);
 
+Route::post(
+    '/event-registrations/skipcash/webhook',
+    [\App\Http\Controllers\Api\EventRegistrationController::class, 'skipcashWebhook']
+);
+
 

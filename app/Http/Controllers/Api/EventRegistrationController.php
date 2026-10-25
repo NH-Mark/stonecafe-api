@@ -8,9 +8,11 @@ use App\Mail\EventRegistrationConfirmed;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\EventTimeSlot;
+use App\Services\SkipCashService;
 use App\Exports\EventRegistrationsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -271,7 +273,10 @@ class EventRegistrationController extends Controller
     }
 
 
-    public function store(Request $request)
+    public function store(
+        Request $request,
+        SkipCashService $skipcash
+    )
     {
         $validated = $request->validate([
             'event_id' => [
@@ -510,10 +515,12 @@ class EventRegistrationController extends Controller
             'timeSlot',
         ]);
 
-        Mail::to($registration->email)
-            ->send(
-                new EventRegistrationConfirmed($registration)
-            );
+        if (!($requiresTimeSlot && $isPaid)) {
+            Mail::to($registration->email)
+                ->send(
+                    new EventRegistrationConfirmed($registration)
+                );
+        }
 
 
         // return response()->json([
@@ -534,25 +541,52 @@ class EventRegistrationController extends Controller
         // }
 
         /*
-         * PAID EVENT
-         *
-         * Create the payment session here.
+         * PAID Omakase registration:
+         * create a SkipCash session and return payment URL.
          */
         $paymentUrl = null;
 
-        /*
-         * Example later:
-         *
-         * $paymentUrl = $this->createPaymentSession(
-         *     $registration,
-         *     $event
-         * );
-         *
-         * $registration->update([
-         *     'payment_reference' => $paymentReference,
-         *     'payment_expires_at' => now()->addMinutes(10),
-         * ]);
-         */
+        if ($requiresTimeSlot && $isPaid) {
+            $transactionId = 'OMREG-' . $registration->id;
+
+            try {
+                $result = $skipcash->createPayment(
+                    (float) $registration->payment_amount,
+                    $transactionId,
+                    (object) [
+                        'name' => $registration->full_name,
+                        'phone' => $registration->phone,
+                        'email' => $registration->email,
+                    ]
+                );
+
+                $paymentUrl = $result['payUrl'] ?? null;
+
+                $registration->update([
+                    'payment_reference' => $result['id'] ?? $transactionId,
+                    'payment_transaction_id' => $transactionId,
+                    'payment_status' => $paymentUrl
+                        ? 'pending'
+                        : 'failed',
+                ]);
+
+                if (!$paymentUrl) {
+                    Log::error('SkipCash payment URL missing for event registration', [
+                        'registration_id' => $registration->id,
+                        'result' => $result,
+                    ]);
+                }
+            } catch (\Throwable $exception) {
+                Log::error('SkipCash payment creation failed for event registration', [
+                    'registration_id' => $registration->id,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                $registration->update([
+                    'payment_status' => 'failed',
+                ]);
+            }
+        }
 
         return response()->json([
             'message' =>
@@ -602,6 +636,77 @@ class EventRegistrationController extends Controller
                 'event',
                 'timeSlot',
             ]),
+        ]);
+    }
+
+    public function skipcashWebhook(Request $request)
+    {
+        Log::info('SkipCash Event Registration Webhook Received', [
+            'payload' => $request->all(),
+        ]);
+
+        $paymentId = $request->input('PaymentId');
+        $transactionId = $request->input('TransactionId');
+        $statusId = (int) $request->input('StatusId');
+
+        if (!$transactionId) {
+            return response()->json([
+                'message' => 'Missing TransactionId',
+            ], 400);
+        }
+
+        $registration = EventRegistration::query()
+            ->where('payment_transaction_id', $transactionId)
+            ->first();
+
+        if (!$registration) {
+            Log::error('Event registration not found for SkipCash webhook', [
+                'transaction_id' => $transactionId,
+            ]);
+
+            return response()->json([
+                'message' => 'Registration not found',
+            ], 404);
+        }
+
+        if ($statusId === 2) {
+            $wasNotPaid = $registration->payment_status !== 'paid';
+
+            if ($wasNotPaid) {
+                $registration->update([
+                    'payment_status' => 'paid',
+                    'payment_reference' => $paymentId ?: $registration->payment_reference,
+                    'paid_at' => now(),
+                ]);
+
+                $registration->loadMissing([
+                    'event',
+                    'timeSlot',
+                ]);
+
+                if (
+                    $registration->event?->registration_type === 'omakase_booking'
+                ) {
+                    Mail::to($registration->email)
+                        ->send(
+                            new EventRegistrationConfirmed($registration)
+                        );
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment marked as paid.',
+            ]);
+        }
+
+        $registration->update([
+            'payment_status' => 'failed',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment marked as failed.',
         ]);
     }
 
