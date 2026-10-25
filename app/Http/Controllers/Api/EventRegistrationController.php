@@ -517,7 +517,11 @@ class EventRegistrationController extends Controller
                  * Always use the event price from Laravel.
                  */
                 'payment_amount' => $isPaid
-                    ? $event->fee
+                    ? ((float) $event->fee * (
+                        $requiresTimeSlot
+                            ? (int) $validated['seat_count']
+                            : 1
+                    ))
                     : null,
 
                 'payment_currency' => $isPaid
