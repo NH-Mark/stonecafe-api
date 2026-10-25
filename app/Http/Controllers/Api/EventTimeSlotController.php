@@ -11,7 +11,6 @@ class EventTimeSlotController extends Controller
     public function index(Event $event): JsonResponse
     {
         $slots = $event->timeSlots()
-            ->where('is_active', true)
             ->orderBy('start_time')
             ->get();
 
@@ -27,10 +26,16 @@ class EventTimeSlotController extends Controller
                 })
                 ->sum('seat_count');
 
-            $availableSeats = max(
-                0,
-                $slot->capacity - $reservedSeats
-            );
+            $availableSeats = $slot->is_active
+                ? max(
+                    0,
+                    $slot->capacity - $reservedSeats
+                )
+                : 0;
+
+            $canSelectSeats =
+                (bool) $slot->is_active &&
+                $availableSeats > 0;
 
             return [
                 'id' => $slot->id,
@@ -40,7 +45,9 @@ class EventTimeSlotController extends Controller
                 'capacity' => $slot->capacity,
                 'reserved_seats' => $reservedSeats,
                 'available_seats' => $availableSeats,
-                'is_full' => $availableSeats <= 0,
+                'is_full' => !$canSelectSeats,
+                'is_active' => (bool) $slot->is_active,
+                'can_select_seats' => $canSelectSeats,
             ];
         });
 
