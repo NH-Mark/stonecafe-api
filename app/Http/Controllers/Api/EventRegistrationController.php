@@ -705,6 +705,7 @@ class EventRegistrationController extends Controller
                     'payment_status' => 'paid',
                     'payment_reference' => $paymentId ?: $registration->payment_reference,
                     'paid_at' => now(),
+                    'status' => 'confirmed',
                 ]);
 
                 $registration->loadMissing([
