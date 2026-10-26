@@ -186,10 +186,24 @@ class EventRegistrationController extends Controller
 
                 case 'status':
 
-                    $query->where(
-                        'status',
-                        $value
-                    );
+                    $normalizedStatus = strtolower((string) $value);
+
+                    if (in_array($normalizedStatus, [
+                        'pending',
+                        'confirmed',
+                        'cancelled',
+                    ], true)) {
+                        $query->where(
+                            'status',
+                            $normalizedStatus
+                        );
+                    } else {
+                        $query->where(
+                            'status',
+                            'like',
+                            "%{$normalizedStatus}%"
+                        );
+                    }
 
                     break;
 
