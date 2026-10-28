@@ -32,9 +32,16 @@ class PrintJobService
                 $item->menuItem?->printer_id ?? 'default'
         );
 
+        $kitchenPrinterName = $this->kitchenPrinterName();
+        $kitchenItems = new Collection();
+
         foreach ($itemsByPrinter as $printerId => $printerItems) {
             if ($printerId === 'default') {
-                $printerName = $this->kitchenPrinterName();
+                $kitchenItems = $kitchenItems->merge(
+                    $printerItems
+                );
+
+                continue;
             } else {
                 $printer = $printerItems
                     ->first()
@@ -49,6 +56,14 @@ class PrintJobService
                     ?: $printer->name;
             }
 
+            if (strtolower($printerName) === strtolower($kitchenPrinterName)) {
+                $kitchenItems = $kitchenItems->merge(
+                    $printerItems
+                );
+
+                continue;
+            }
+
             $this->createKotJobForPrinter(
                 $order,
                 $printerName,
@@ -56,12 +71,18 @@ class PrintJobService
             );
 
             if ($this->shouldMirrorToKitchen($printerName)) {
-                $this->createKotJobForPrinter(
-                    $order,
-                    $this->kitchenPrinterName(),
+                $kitchenItems = $kitchenItems->merge(
                     $printerItems
                 );
             }
+        }
+
+        if ($kitchenItems->isNotEmpty()) {
+            $this->createKotJobForPrinter(
+                $order,
+                $kitchenPrinterName,
+                $kitchenItems
+            );
         }
     }
 
