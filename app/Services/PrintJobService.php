@@ -34,7 +34,7 @@ class PrintJobService
 
         foreach ($itemsByPrinter as $printerId => $printerItems) {
             if ($printerId === 'default') {
-                $printerName = 'Kitchen-Printer';
+                $printerName = $this->kitchenPrinterName();
             } else {
                 $printer = $printerItems
                     ->first()
@@ -49,21 +49,72 @@ class PrintJobService
                     ?: $printer->name;
             }
 
-            $printJob = PrintJob::create([
-                'order_id' => $order->id,
-                'dining_session_id' => $order->dining_session_id,
-                'payment_batch_id' => null,
-                'printer' => $printerName,
-                'type' => 'KOT',
-                'status' => 'pending',
-            ]);
+            $this->createKotJobForPrinter(
+                $order,
+                $printerName,
+                $printerItems
+            );
 
-            foreach ($printerItems as $item) {
-                $printJob->items()->create([
-                    'order_item_id' => $item->id,
-                    'quantity' => $item->quantity,
-                ]);
+            if ($this->shouldMirrorToKitchen($printerName)) {
+                $this->createKotJobForPrinter(
+                    $order,
+                    $this->kitchenPrinterName(),
+                    $printerItems
+                );
             }
         }
+    }
+
+    private function createKotJobForPrinter(
+        Order $order,
+        string $printerName,
+        Collection $printerItems
+    ): void {
+        $printJob = PrintJob::create([
+            'order_id' => $order->id,
+            'dining_session_id' => $order->dining_session_id,
+            'payment_batch_id' => null,
+            'printer' => $printerName,
+            'type' => 'KOT',
+            'status' => 'pending',
+        ]);
+
+        foreach ($printerItems as $item) {
+            $printJob->items()->create([
+                'order_item_id' => $item->id,
+                'quantity' => $item->quantity,
+            ]);
+        }
+    }
+
+    private function shouldMirrorToKitchen(string $printerName): bool
+    {
+        $kitchenPrinter = strtolower($this->kitchenPrinterName());
+
+        if (strtolower($printerName) === $kitchenPrinter) {
+            return false;
+        }
+
+        $mirroredPrinters = collect(
+            config('printing.mirror_to_kitchen_for', [])
+        )
+            ->map(
+                fn ($name) =>
+                    strtolower(trim((string) $name))
+            )
+            ->filter()
+            ->values();
+
+        return $mirroredPrinters->contains(
+            strtolower($printerName)
+        );
+    }
+
+    private function kitchenPrinterName(): string
+    {
+        return (string) config(
+            'printing.kitchen_system_name',
+            'Kitchen-Printer'
+        );
     }
 }
