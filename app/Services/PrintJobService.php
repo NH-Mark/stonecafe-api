@@ -7,10 +7,31 @@ use Illuminate\Database\Eloquent\Collection;
 
 class PrintJobService
 {
+    public function shouldPrintOrder(Order $order): bool
+    {
+        if ((int) ($order->location_id ?? 0) === 1) {
+            return true;
+        }
+
+        $locationCode = $order->relationLoaded('location')
+            ? $order->location?->code
+            : $order->location?->code;
+
+        if ($locationCode === null && $order->location_id) {
+            $locationCode = $order->location()->value('code');
+        }
+
+        return strtolower((string) $locationCode) === 'main';
+    }
+
     public function createKotJobs(
         Order $order,
         ?Collection $items = null
     ): void {
+        if (!$this->shouldPrintOrder($order)) {
+            return;
+        }
+
         if ($items === null) {
             $order->loadMissing([
                 'items.menuItem.printer',

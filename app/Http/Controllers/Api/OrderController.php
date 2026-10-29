@@ -2257,25 +2257,27 @@ class OrderController extends Controller
             |--------------------------------------------------------------------------
             */
 
-                PrintJob::create([
-                    'order_id' =>
-                    $order->id,
+                if ($this->printJobService->shouldPrintOrder($order)) {
+                    PrintJob::create([
+                        'order_id' =>
+                        $order->id,
 
-                    'dining_session_id' =>
-                    null,
+                        'dining_session_id' =>
+                        null,
 
-                    'payment_batch_id' =>
-                    null,
+                        'payment_batch_id' =>
+                        null,
 
-                    'printer' =>
-                    'Kitchen-Printer',
+                        'printer' =>
+                        'Kitchen-Printer',
 
-                    'type' =>
-                    'RECEIPT',
+                        'type' =>
+                        'RECEIPT',
 
-                    'status' =>
-                    'pending',
-                ]);
+                        'status' =>
+                        'pending',
+                    ]);
+                }
 
 
                 /*
@@ -2582,6 +2584,12 @@ class OrderController extends Controller
             return response()->json([
                 'message' => 'Order must be completed and fully paid before printing.',
             ], 422);
+        }
+
+        if (!$this->printJobService->shouldPrintOrder($order)) {
+            return response()->json([
+                'message' => 'Printing is only enabled for the main location.',
+            ]);
         }
 
         $this->printJobService->createKotJobs($order);

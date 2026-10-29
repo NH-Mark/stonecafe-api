@@ -21,6 +21,7 @@ class DailySalesEmailController extends Controller
 
     public function update(Request $request)
     {
+        
         $validated = $request->validate([
             'enabled' => [
                 'required',
