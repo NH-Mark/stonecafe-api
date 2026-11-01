@@ -14,7 +14,8 @@ class DailySalesSummaryMail extends Mailable
         public array $dashboard,
         public string $dateRange,
         public string $fromDate,
-        public string $toDate
+        public string $toDate,
+        public ?string $locationName = null
     ) {}
 
     public function build()
@@ -37,10 +38,16 @@ class DailySalesSummaryMail extends Mailable
                 ? $this->fromDate
                 : $this->fromDate . ' - ' . $this->toDate;
 
+        $locationLabel =
+            $this->locationName
+                ? ' - ' . $this->locationName
+                : '';
+
         return $this
             ->subject(
                 'Sales Summary — ' .
                 $rangeLabel .
+                $locationLabel .
                 ' (' .
                 $dateLabel .
                 ')'

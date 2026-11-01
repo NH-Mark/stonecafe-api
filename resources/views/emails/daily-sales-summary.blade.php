@@ -96,6 +96,17 @@
                                     {{ \Carbon\Carbon::parse($toDate)->format('d M Y') }}
                                     @endif
                                 </div>
+
+                                @if(!empty($locationName))
+                                <div
+                                    style="
+        margin-top:6px;
+        font-size:13px;
+        color:#ddd6d0;
+    ">
+                                    Location: {{ $locationName }}
+                                </div>
+                                @endif
                             </div>
 
                         </td>

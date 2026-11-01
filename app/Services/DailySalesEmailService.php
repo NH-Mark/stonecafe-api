@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Mail\DailySalesSummaryMail;
 use App\Models\DailySalesEmailSetting;
+use App\Models\Location;
+use App\Models\Order;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -276,25 +279,59 @@ class DailySalesEmailService
         $dashboardService =
             app(SalesDashboardService::class);
 
-        $request = request();
+        $locationIds = Order::query()
+            ->where('status', Order::STATUS_COMPLETED)
+            ->whereNotNull('location_id')
+            ->whereBetween('ordered_at', [
+                $fromDate . ' 00:00:00',
+                $toDate . ' 23:59:59',
+            ])
+            ->distinct()
+            ->pluck('location_id');
 
-        $request->merge([
-            'range' => 'custom',
-            'start_date' => $fromDate,
-            'end_date' => $toDate,
-        ]);
+        $locations = Location::query()
+            ->whereIn('id', $locationIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-        $dashboard =
-            $dashboardService->dashboard($request);
+        // Fallback to one overall report if no location has data in the range.
+        if ($locations->isEmpty()) {
+            $dashboard = $dashboardService->dashboard(new Request([
+                'range' => 'custom',
+                'start_date' => $fromDate,
+                'end_date' => $toDate,
+            ]));
 
-        Mail::to($recipients)
-            ->send(
+            Mail::to($recipients)->send(
                 new DailySalesSummaryMail(
                     $dashboard,
                     $dateRange,
                     $fromDate,
-                    $toDate
+                    $toDate,
+                    null
                 )
             );
+
+            return;
+        }
+
+        foreach ($locations as $location) {
+            $dashboard = $dashboardService->dashboard(new Request([
+                'range' => 'custom',
+                'start_date' => $fromDate,
+                'end_date' => $toDate,
+                'location_id' => $location->id,
+            ]));
+
+            Mail::to($recipients)->send(
+                new DailySalesSummaryMail(
+                    $dashboard,
+                    $dateRange,
+                    $fromDate,
+                    $toDate,
+                    $location->name
+                )
+            );
+        }
     }
 }
