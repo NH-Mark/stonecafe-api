@@ -136,6 +136,9 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
 
         if ($this->hasOmakase) {
             $headings[] = 'Session';
+            $headings[] = 'Seats';
+        } else {
+            $headings[] = 'Time Slot';
             $headings[] = 'Seat Count';
         }
 
@@ -204,6 +207,9 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
             $row[] = $isOmakase
                 ? $registration->seat_count
                 : '';
+        } else {
+            $row[] = $session?->name;
+            $row[] = $registration->seat_count;
         }
 
         $row = array_merge($row, [
