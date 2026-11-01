@@ -22,6 +22,9 @@ class EventRegistrationResource extends JsonResource
             'event_time_slot_id' =>
                 $this->event_time_slot_id,
 
+            'seat_count' =>
+                $this->seat_count,
+
             'full_name' =>
                 $this->full_name,
 
@@ -60,9 +63,6 @@ class EventRegistrationResource extends JsonResource
 
             'paid_at' =>
                 $this->paid_at,
-
-            'seat_count' =>
-                $this->seat_count,
 
             'metadata' =>
                 $this->metadata,

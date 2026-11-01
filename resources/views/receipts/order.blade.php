@@ -107,6 +107,29 @@
             color: #40332a;
         }
 
+        .item-name-en {
+            display: inline;
+        }
+
+        .item-name-separator {
+            display: inline;
+            margin: 0 4px;
+            color: #7d6f64;
+            font-weight: normal;
+        }
+
+        .item-name-ar {
+            font-size: 9px;
+            color: #6f6259;
+            font-family: DejaVu Sans, sans-serif;
+            display: inline;
+            direction: ltr;
+            unicode-bidi: normal;
+            text-align: left;
+            line-height: 1.35;
+            margin-top: 0;
+        }
+
         .modifier {
             font-size: 8px;
             color: #8a8179;
@@ -272,6 +295,12 @@
     <div class="section">
         <div class="section-title">Order Items</div>
 
+        @php
+        $arabicShaper = class_exists(\ArPHP\I18N\Arabic::class)
+        ? new \ArPHP\I18N\Arabic()
+        : null;
+        @endphp
+
         <table class="items-table">
             <thead>
                 <tr>
@@ -286,8 +315,26 @@
                 @forelse ($order->items as $item)
                 <tr>
                     <td>
+                        @php
+                        $arabicName = trim((string) ($item->menuItem?->name_ar ?? ''));
+                        $arabicNameForPdf = $arabicName;
+
+                        if ($arabicShaper && $arabicName !== '') {
+                        $arabicNameForPdf = $arabicShaper->utf8Glyphs(
+                        $arabicName,
+                        100,
+                        false,
+                        true
+                        );
+                        }
+                        @endphp
+
                         <div class="item-name">
-                            {{ $item->menuItem?->name ?? 'Unknown Item' }}
+                            <span class="item-name-en">{{ $item->menuItem?->name ?? 'Unknown Item' }}</span>
+                            @if ($arabicNameForPdf !== '')
+                            <span class="item-name-separator">-</span>
+                            <span class="item-name-ar" lang="ar">{{ $arabicNameForPdf }}</span>
+                            @endif
                         </div>
 
                         @if ($item->modifiers->isNotEmpty())
