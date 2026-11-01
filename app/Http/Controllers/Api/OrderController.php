@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Events\KitchenOrderCreated;
 use App\Events\KitchenOrderUpdated;
 use App\Http\Controllers\Controller;
@@ -2611,6 +2612,32 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Order sent to printer successfully.',
         ]);
+    }
+
+    public function downloadReceipt(Order $order)
+    {
+        $order->load([
+            'items.menuItem',
+            'items.modifiers.modifier',
+            'payments.paymentMethod',
+            'payments.receivedBy',
+            'discounts.discount',
+            'customer',
+            'table',
+            'cashier',
+            'location',
+            'orderType',
+            'orderSource',
+        ]);
+
+        $filename = 'order-receipt-' . ($order->order_no ?: $order->id) . '.pdf';
+
+        $pdf = Pdf::loadView('receipts.order', [
+            'order' => $order,
+            'generatedAt' => now(),
+        ]);
+
+        return $pdf->download($filename);
     }
 
     public function assignTable(

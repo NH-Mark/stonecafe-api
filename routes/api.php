@@ -219,6 +219,11 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::get(
+        '/orders/{order}/receipt',
+        [OrderController::class, 'downloadReceipt']
+    );
+
+    Route::get(
         '/sales/email-settings',
         [DailySalesEmailController::class, 'show']
     );
