@@ -3,14 +3,14 @@
 namespace App\Exports;
 
 use App\Models\EventRegistration;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
 class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapping
 {
-    private Collection $registrations;
+    private EloquentCollection $registrations;
     private array $metadataKeys = [];
     private bool $hasOmakase = false;
     private bool $hasNonOmakase = false;
@@ -122,7 +122,7 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
         return is_array($metadata) ? $metadata : [];
     }
 
-    public function collection(): Collection
+    public function collection(): EloquentCollection
     {
         return $this->registrations;
     }
@@ -136,9 +136,7 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
 
         if ($this->hasOmakase) {
             $headings[] = 'Session';
-            $headings[] = 'Seats';
-        } else {
-            $headings[] = 'Time Slot';
+            $headings[] = 'Seat Count';
         }
 
         $headings = array_merge($headings, [
@@ -161,10 +159,6 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
             'Payment Reference',
             'Paid At',
         ]);
-
-        if (!$this->hasOmakase) {
-            $headings[] = 'Seat Count';
-        }
 
         $headings[] = 'Registered At';
 
@@ -210,8 +204,6 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
             $row[] = $isOmakase
                 ? $registration->seat_count
                 : '';
-        } else {
-            $row[] = $session?->name;
         }
 
         $row = array_merge($row, [
@@ -234,10 +226,6 @@ class EventRegistrationsExport implements FromCollection, WithHeadings, WithMapp
             $registration->payment_reference,
             $registration->paid_at?->format('Y-m-d H:i:s'),
         ]);
-
-        if (!$this->hasOmakase) {
-            $row[] = $registration->seat_count;
-        }
 
         $row[] = $registration->created_at?->format('Y-m-d H:i:s');
 
