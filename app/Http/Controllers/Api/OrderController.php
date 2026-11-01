@@ -425,7 +425,7 @@ class OrderController extends Controller
 
     public function getTodayOrders(Request $request)
     {
-        $orders = Order::query()
+        $query = Order::query()
             ->with([
                 'orderType',
                 'orderSource',
@@ -438,7 +438,13 @@ class OrderController extends Controller
                 'payments.paymentMethod',
                 'payments.receivedBy',
             ])
-            ->whereDate('ordered_at', now())
+            ->whereDate('ordered_at', now());
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->integer('location_id'));
+        }
+
+        $orders = $query
             ->latest('ordered_at')
             ->get();
 

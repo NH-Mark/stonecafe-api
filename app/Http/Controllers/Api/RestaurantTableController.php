@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\RestaurantTable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class RestaurantTableController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $tables = RestaurantTable::query()
+        $query = RestaurantTable::query()
             ->where('status', true)
             ->with([
                 'diningSessions' => function ($query) {
@@ -22,7 +23,13 @@ class RestaurantTableController extends Controller
                         ->withCount('orders')
                         ->orderByDesc('id');
                 },
-            ])
+            ]);
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->integer('location_id'));
+        }
+
+        $tables = $query
             ->orderBy('id')
             ->get();
 
