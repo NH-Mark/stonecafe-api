@@ -60,28 +60,32 @@ class CustomerOrderService
 
             /*
             |--------------------------------------------------------------------------
+            | Location
+            |--------------------------------------------------------------------------
+            */
+
+            $location =
+                Location::query()
+                    ->whereKey((int) $data['location_id'])
+                    ->firstOrFail();
+
+
+            /*
+            |--------------------------------------------------------------------------
             | Order Sequence
             |--------------------------------------------------------------------------
             */
 
             $lastSequence =
-                Order::lockForUpdate()
+                Order::query()
+                    ->where('location_id', $location->id)
+                    ->lockForUpdate()
                     ->max('order_sequence');
 
             $sequence =
                 $lastSequence
                     ? $lastSequence + 1
                     : 1001;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Location
-            |--------------------------------------------------------------------------
-            */
-
-            $location =
-                Location::firstOrFail();
 
 
             /*
@@ -146,7 +150,7 @@ class CustomerOrderService
             $orderData = [
 
                 'order_no' =>
-                    'ORD-' . $sequence,
+                    $location->order_code . '-' . $sequence,
 
                 'order_sequence' =>
                     $sequence,

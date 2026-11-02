@@ -23,6 +23,12 @@ class CustomerOrderController extends Controller
     {
         $validated = $request->validate([
 
+            'location_id' => [
+                'required',
+                'integer',
+                'exists:locations,id',
+            ],
+
             'table_id' => [
                 'nullable',
                 'integer',
@@ -71,7 +77,11 @@ class CustomerOrderController extends Controller
                 'required',
                 'string',
             ],
-            'number_plate'=>['nullable'],
+            'number_plate' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
 
         ]);
 
