@@ -341,8 +341,8 @@ class SalesDashboardService
             ],
 
             'custom' => [
-                Carbon::parse(request('start_date'))->startOfDay(),
-                Carbon::parse(request('end_date'))->endOfDay(),
+                Carbon::parse($request->input('start_date'))->startOfDay(),
+                Carbon::parse($request->input('end_date'))->endOfDay(),
             ],
 
             default => [
