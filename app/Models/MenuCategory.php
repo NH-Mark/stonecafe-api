@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MenuCategory extends Model
 {
@@ -15,6 +16,10 @@ class MenuCategory extends Model
         'parent_id',
         'name_ar',
         'description_ar'
+    ];
+
+    protected $casts = [
+        'active' => 'boolean',
     ];
 
     public function parent()
@@ -30,6 +35,16 @@ class MenuCategory extends Model
     public function menuItems()
     {
         return $this->hasMany(MenuItem::class);
+    }
+
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Location::class,
+            'menu_category_location_statuses'
+        )
+            ->withPivot('active')
+            ->withTimestamps();
     }
     
 }

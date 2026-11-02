@@ -66,6 +66,23 @@ class CategoryRequest extends FormRequest
                 'boolean',
             ],
 
+            'location_statuses' => [
+                'sometimes',
+                'array',
+            ],
+
+            'location_statuses.*.location_id' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:locations,id',
+            ],
+
+            'location_statuses.*.active' => [
+                'required',
+                'boolean',
+            ],
+
 
             'parent_id' => [
                 'nullable',

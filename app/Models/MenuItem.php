@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MenuItem extends Model
 {
@@ -72,5 +73,15 @@ class MenuItem extends Model
         return $this->belongsTo(
             Printer::class
         );
+    }
+
+    public function locations(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Location::class,
+            'menu_item_location_statuses'
+        )
+            ->withPivot('active')
+            ->withTimestamps();
     }
 }

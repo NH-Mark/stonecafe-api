@@ -61,6 +61,21 @@ class MenuItemResource extends JsonResource
             'menu_item_tags' => MenuItemTagResource::collection(
                 $this->whenLoaded('menuItemTags')
             ),
+
+            'location_statuses' => $this->whenLoaded(
+                'locations',
+                function () {
+                    return $this->locations->map(function ($location) {
+                        return [
+                            'location_id' => $location->id,
+                            'location_name' => $location->name,
+                            'active' => (bool) $location->pivot?->active,
+                        ];
+                    })->values();
+                },
+                []
+            ),
+
             'printer_id' => $this->printer?->id,
             'printer' => $this->printer,
 

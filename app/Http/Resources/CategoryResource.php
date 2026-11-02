@@ -54,6 +54,20 @@ class CategoryResource extends JsonResource
                 $this->whenLoaded('children')
             ),
 
+            'location_statuses' => $this->whenLoaded(
+                'locations',
+                function () {
+                    return $this->locations->map(function ($location) {
+                        return [
+                            'location_id' => $location->id,
+                            'location_name' => $location->name,
+                            'active' => (bool) $location->pivot?->active,
+                        ];
+                    })->values();
+                },
+                []
+            ),
+
 
             'created_at' => $this->created_at,
 

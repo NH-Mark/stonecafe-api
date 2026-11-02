@@ -8,6 +8,7 @@ use App\Http\Requests\MenuItem\UpdateMenuItemRequest;
 use App\Http\Resources\MenuItemResource;
 use App\Models\MenuItem;
 use App\Services\MenuItemService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class MenuItemController extends Controller
@@ -16,16 +17,28 @@ class MenuItemController extends Controller
         private MenuItemService $menuItemService
     ) {}
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $menuItem = MenuItem::with([
+        $locationId = $request->filled('location_id')
+            ? $request->integer('location_id')
+            : null;
+
+        $relations = [
             'menu_category',
             'modifierGroups' => function ($query) {
                 $query->withCount('modifiers');
             },
             'foodSymbols',
             'menuItemTags'
-        ])
+        ];
+
+        $relations['locations'] = function ($query) use ($locationId) {
+            if ($locationId !== null) {
+                $query->where('locations.id', $locationId);
+            }
+        };
+
+        $menuItem = MenuItem::with($relations)
             ->withCount('modifierGroups')
             ->findOrFail($id);
 
@@ -37,17 +50,33 @@ class MenuItemController extends Controller
     }
     public function index(Request $request)
     {
+        $locationId = $request->filled('location_id')
+            ? $request->integer('location_id')
+            : null;
+
         $perPage = min(
             $request->integer('per_page', 10),
             100
         );
 
-        $items = MenuItem::with([
+        $relations = [
             'menu_category',
             'modifierGroups.modifiers',
             'foodSymbols',
             'menuItemTags',
-        ])
+        ];
+
+        if ($locationId !== null) {
+            $relations['locations'] = function ($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            };
+
+            $relations['menu_category.locations'] = function ($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            };
+        }
+
+        $items = MenuItem::with($relations)
 
             /**
              * Category filter.
@@ -95,18 +124,30 @@ class MenuItemController extends Controller
              */
             ->when(
                 $request->boolean('active'),
-                function ($query) {
-                    $query
-                        ->where('active', true)
-                        ->whereHas(
-                            'menu_category',
-                            function ($categoryQuery) {
-                                $categoryQuery->where(
-                                    'active',
-                                    true
-                                );
-                            }
-                        );
+                function (Builder $query) use ($locationId) {
+                    $query->where(function (Builder $itemQuery) use ($locationId) {
+                        if ($locationId === null) {
+                            $itemQuery->where('active', true);
+                            return;
+                        }
+
+                        $itemQuery->whereHas('locations', function (Builder $locationQuery) use ($locationId) {
+                            $locationQuery
+                                ->where('locations.id', $locationId)
+                                ->where('menu_item_location_statuses.active', true);
+                        });
+                    })->whereHas('menu_category', function (Builder $categoryQuery) use ($locationId) {
+                        if ($locationId === null) {
+                            $categoryQuery->where('active', true);
+                            return;
+                        }
+
+                        $categoryQuery->whereHas('locations', function (Builder $locationQuery) use ($locationId) {
+                            $locationQuery
+                                ->where('locations.id', $locationId)
+                                ->where('menu_category_location_statuses.active', true);
+                        });
+                    });
                 }
             )
 
@@ -121,15 +162,51 @@ class MenuItemController extends Controller
 
     public function listMenu(Request $request)
     {
-        $items = MenuItem::with([
+        $locationId = $request->filled('location_id')
+            ? $request->integer('location_id')
+            : null;
+
+        $relations = [
             'menu_category',
             'modifierGroups.modifiers',
             'foodSymbols',
             'menuItemTags',
-        ])
-            ->where('active', 1)
-            ->whereHas('menu_category', function ($query) {
-                $query->where('active', 1);
+        ];
+
+        if ($locationId !== null) {
+            $relations['locations'] = function ($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            };
+
+            $relations['menu_category.locations'] = function ($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            };
+        }
+
+        $items = MenuItem::with($relations)
+            ->where(function (Builder $query) use ($locationId) {
+                if ($locationId === null) {
+                    $query->where('active', true);
+                    return;
+                }
+
+                $query->whereHas('locations', function (Builder $locationQuery) use ($locationId) {
+                    $locationQuery
+                        ->where('locations.id', $locationId)
+                        ->where('menu_item_location_statuses.active', true);
+                });
+            })
+            ->whereHas('menu_category', function (Builder $query) use ($locationId) {
+                if ($locationId === null) {
+                    $query->where('active', true);
+                    return;
+                }
+
+                $query->whereHas('locations', function (Builder $locationQuery) use ($locationId) {
+                    $locationQuery
+                        ->where('locations.id', $locationId)
+                        ->where('menu_category_location_statuses.active', true);
+                });
             })
             ->when(
                 $request->category_id,
