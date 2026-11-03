@@ -2563,6 +2563,14 @@ class OrderController extends Controller
 
             $order->save();
 
+            if ($validated['status'] === 'confirmed') {
+                event(
+                    new KitchenOrderCreated($order->fresh())
+                );
+
+                $this->printJobService->createKotJobs($order->fresh());
+            }
+
             return $order->fresh([
                 'items.menuItem',
                 'items.modifiers.modifier',
