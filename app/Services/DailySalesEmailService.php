@@ -269,120 +269,235 @@ class DailySalesEmailService
     |--------------------------------------------------------------------------
     */
 
-    private function sendEmail(
-        array $recipients,
-        string $dateRange,
-        string $fromDate,
-        string $toDate
-    ): void {
+    // private function sendEmail(
+    //     array $recipients,
+    //     string $dateRange,
+    //     string $fromDate,
+    //     string $toDate
+    // ): void {
 
-        $dashboardService =
-            app(SalesDashboardService::class);
+    //     $dashboardService =
+    //         app(SalesDashboardService::class);
 
-        $request = request();
+    //     $request = request();
 
-        Log::info('Daily sales email sendEmail start', [
-            'date_range' => $dateRange,
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-            'recipients_count' => count($recipients),
+    //     Log::info('Daily sales email sendEmail start', [
+    //         'date_range' => $dateRange,
+    //         'from_date' => $fromDate,
+    //         'to_date' => $toDate,
+    //         'recipients_count' => count($recipients),
+    //     ]);
+
+    //     $locationIds = Order::query()
+    //         ->where('status', Order::STATUS_COMPLETED)
+    //         ->whereNotNull('location_id')
+    //         ->whereBetween('ordered_at', [
+    //             $fromDate . ' 00:00:00',
+    //             $toDate . ' 23:59:59',
+    //         ])
+    //         ->distinct()
+    //         ->pluck('location_id');
+
+    //     Log::info('Daily sales email location ids resolved', [
+    //         'count' => $locationIds->count(),
+    //         'location_ids' => $locationIds->values()->all(),
+    //         'from_date' => $fromDate,
+    //         'to_date' => $toDate,
+    //     ]);
+
+    //     $locations = Location::query()
+    //         ->whereIn('id', $locationIds)
+    //         ->orderBy('name')
+    //         ->get(['id', 'name']);
+
+    //     Log::info('Daily sales email locations loaded', [
+    //         'count' => $locations->count(),
+    //         'locations' => $locations->map(fn ($location) => [
+    //             'id' => $location->id,
+    //             'name' => $location->name,
+    //         ])->all(),
+    //     ]);
+
+
+
+    //     // Fallback to one overall report if no location has data in the range.
+    //     if ($locations->isEmpty()) {
+    //         Log::info('Daily sales email no locations found, sending overall report', [
+    //             'from_date' => $fromDate,
+    //             'to_date' => $toDate,
+    //         ]);
+
+    //         $dashboard = $dashboardService->dashboard(new Request([
+    //             'range' => 'custom',
+    //             'start_date' => $fromDate,
+    //             'end_date' => $toDate,
+    //         ]));
+
+    //         Mail::to($recipients)->send(
+    //             new DailySalesSummaryMail(
+    //                 $dashboard,
+    //                 $dateRange,
+    //                 $fromDate,
+    //                 $toDate,
+    //                 null
+    //             )
+    //         );
+
+    //         Log::info('Daily sales email sent overall report', [
+    //             'to' => $recipients,
+    //             'from_date' => $fromDate,
+    //             'to_date' => $toDate,
+    //         ]);
+
+    //         return;
+    //     }
+
+    //     foreach ($locations as $location) {
+    //         Log::info('Daily sales email preparing location email', [
+    //             'location_id' => $location->id,
+    //             'location_name' => $location->name,
+    //             'from_date' => $fromDate,
+    //             'to_date' => $toDate,
+    //         ]);
+
+    //         $request = new Request([
+    //             'range' => 'custom',
+    //             'start_date' => $fromDate,
+    //             'end_date' => $toDate,
+    //             'location_id' => $location->id,
+    //         ]);
+
+    //         $dashboard = $dashboardService->dashboard($request);
+
+    //         Mail::to($recipients)->send(
+    //             new DailySalesSummaryMail(
+    //                 $dashboard,
+    //                 $dateRange,
+    //                 $fromDate,
+    //                 $toDate,
+    //                 $location->name
+    //             )
+    //         );
+
+    //         Log::info('Daily sales email sent location report', [
+    //             'location_id' => $location->id,
+    //             'location_name' => $location->name,
+    //             'from_date' => $fromDate,
+    //             'to_date' => $toDate,
+    //         ]);
+    //     }
+    // }
+
+    
+private function sendEmail(
+    array $recipients,
+    string $dateRange,
+    string $fromDate,
+    string $toDate
+): void {
+
+    $dashboardService = app(SalesDashboardService::class);
+
+    Log::info('Daily sales email sendEmail start', [
+        'date_range' => $dateRange,
+        'from_date' => $fromDate,
+        'to_date' => $toDate,
+        'recipients_count' => count($recipients),
+    ]);
+
+    // Get locations having completed orders within the date range.
+    $locationIds = Order::query()
+        ->where('status', Order::STATUS_COMPLETED)
+        ->whereNotNull('location_id')
+        ->whereBetween('ordered_at', [
+            $fromDate . ' 00:00:00',
+            $toDate . ' 23:59:59',
+        ])
+        ->distinct()
+        ->pluck('location_id');
+
+    $locations = Location::query()
+        ->whereIn('id', $locationIds)
+        ->orderBy('name')
+        ->get(['id', 'name']);
+
+    Log::info('Daily sales email locations loaded', [
+        'count' => $locations->count(),
+        'locations' => $locations->map(fn ($location) => [
+            'id' => $location->id,
+            'name' => $location->name,
+        ])->all(),
+    ]);
+
+    /*
+     * SEND OVERALL REPORT
+     *
+     * Only send when orders exist in multiple locations.
+     * If no locations have orders, preserve the overall fallback.
+     */
+    if ($locations->count() > 1 || $locations->isEmpty()) {
+
+        Log::info('Preparing overall sales report');
+
+        $overallRequest = new Request([
+            'range' => 'custom',
+            'start_date' => $fromDate,
+            'end_date' => $toDate,
         ]);
 
-        $locationIds = Order::query()
-            ->where('status', Order::STATUS_COMPLETED)
-            ->whereNotNull('location_id')
-            ->whereBetween('ordered_at', [
-                $fromDate . ' 00:00:00',
-                $toDate . ' 23:59:59',
-            ])
-            ->distinct()
-            ->pluck('location_id');
+        $overallDashboard = $dashboardService->dashboard(
+            $overallRequest
+        );
 
-        Log::info('Daily sales email location ids resolved', [
-            'count' => $locationIds->count(),
-            'location_ids' => $locationIds->values()->all(),
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-        ]);
+        Mail::to($recipients)->send(
+            new DailySalesSummaryMail(
+                $overallDashboard,
+                $dateRange,
+                $fromDate,
+                $toDate,
+                null
+            )
+        );
 
-        $locations = Location::query()
-            ->whereIn('id', $locationIds)
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        Log::info('Daily sales email locations loaded', [
-            'count' => $locations->count(),
-            'locations' => $locations->map(fn ($location) => [
-                'id' => $location->id,
-                'name' => $location->name,
-            ])->all(),
-        ]);
-
-        // Fallback to one overall report if no location has data in the range.
-        if ($locations->isEmpty()) {
-            Log::info('Daily sales email no locations found, sending overall report', [
-                'from_date' => $fromDate,
-                'to_date' => $toDate,
-            ]);
-
-            $dashboard = $dashboardService->dashboard(new Request([
-                'range' => 'custom',
-                'start_date' => $fromDate,
-                'end_date' => $toDate,
-            ]));
-
-            Mail::to($recipients)->send(
-                new DailySalesSummaryMail(
-                    $dashboard,
-                    $dateRange,
-                    $fromDate,
-                    $toDate,
-                    null
-                )
-            );
-
-            Log::info('Daily sales email sent overall report', [
-                'to' => $recipients,
-                'from_date' => $fromDate,
-                'to_date' => $toDate,
-            ]);
-
-            return;
-        }
-
-        foreach ($locations as $location) {
-            Log::info('Daily sales email preparing location email', [
-                'location_id' => $location->id,
-                'location_name' => $location->name,
-                'from_date' => $fromDate,
-                'to_date' => $toDate,
-            ]);
-
-            $request = new Request([
-                'range' => 'custom',
-                'start_date' => $fromDate,
-                'end_date' => $toDate,
-                'location_id' => $location->id,
-            ]);
-
-            $dashboard = $dashboardService->dashboard($request);
-
-            Mail::to($recipients)->send(
-                new DailySalesSummaryMail(
-                    $dashboard,
-                    $dateRange,
-                    $fromDate,
-                    $toDate,
-                    $location->name
-                )
-            );
-
-            Log::info('Daily sales email sent location report', [
-                'location_id' => $location->id,
-                'location_name' => $location->name,
-                'from_date' => $fromDate,
-                'to_date' => $toDate,
-            ]);
-        }
+        Log::info('Overall sales report email sent');
     }
+
+    /*
+     * SEND SEPARATE LOCATION REPORTS
+     */
+    foreach ($locations as $location) {
+
+        Log::info('Preparing location sales report', [
+            'location_id' => $location->id,
+            'location_name' => $location->name,
+        ]);
+
+        $locationRequest = new Request([
+            'range' => 'custom',
+            'start_date' => $fromDate,
+            'end_date' => $toDate,
+            'location_id' => $location->id,
+        ]);
+
+        $dashboard = $dashboardService->dashboard(
+            $locationRequest
+        );
+
+        Mail::to($recipients)->send(
+            new DailySalesSummaryMail(
+                $dashboard,
+                $dateRange,
+                $fromDate,
+                $toDate,
+                $location->name
+            )
+        );
+
+        Log::info('Location sales report email sent', [
+            'location_id' => $location->id,
+            'location_name' => $location->name,
+        ]);
+    }
+}
+
 }
