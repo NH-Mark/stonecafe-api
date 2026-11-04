@@ -459,7 +459,16 @@ class OrderController extends Controller
                 'payments.paymentMethod',
                 'payments.receivedBy',
             ])
-            ->whereDate('ordered_at', now());
+            ->where(function ($q) {
+                $q->where(function ($inner) {
+                        $inner->whereDate('ordered_at', now())
+                            ->where('status', '!=', 'cancelled');
+                    })
+                    ->orWhere(function ($inner) {
+                        $inner->where('payment_status', '!=', 'paid')
+                            ->where('status', '!=', 'cancelled');
+                    });
+            });
 
         if ($request->filled('location_id')) {
             $query->where('location_id', $request->integer('location_id'));
