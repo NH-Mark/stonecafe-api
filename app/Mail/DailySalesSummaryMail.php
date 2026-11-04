@@ -41,11 +41,16 @@ class DailySalesSummaryMail extends Mailable
         $locationLabel =
             $this->locationName
                 ? ' - ' . $this->locationName
-                : '';
+                : ' - Overall';
+
+        $subjectPrefix = $this->locationName
+            ? 'Sales Summary'
+            : 'Overall Sales Summary';
 
         return $this
             ->subject(
-                'Sales Summary — ' .
+                $subjectPrefix .
+                ' — ' .
                 $rangeLabel .
                 $locationLabel .
                 ' (' .
