@@ -212,10 +212,31 @@ class OrderController extends Controller
                  */
                     case 'status':
 
-                        $query->where(
-                            'status',
-                            $value
-                        );
+                        if (is_array($value)) {
+                            $normalized = array_values(
+                                array_filter(
+                                    array_map(
+                                        fn ($item) => is_string($item)
+                                            ? trim($item)
+                                            : $item,
+                                        $value
+                                    ),
+                                    fn ($item) => $item !== null && $item !== ''
+                                )
+                            );
+
+                            if (!empty($normalized)) {
+                                $query->whereIn(
+                                    'status',
+                                    $normalized
+                                );
+                            }
+                        } else {
+                            $query->where(
+                                'status',
+                                trim((string) $value)
+                            );
+                        }
 
                         break;
 
