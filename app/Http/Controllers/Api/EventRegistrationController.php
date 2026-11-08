@@ -215,6 +215,30 @@ class EventRegistrationController extends Controller
                     );
 
                     break;
+
+                case 'selection_status':
+
+                    $normalizedSelectionStatus = strtolower((string) $value);
+
+                    if (in_array($normalizedSelectionStatus, [
+                        'pending',
+                        'selected',
+                        'not_selected',
+                        'waitlisted',
+                    ], true)) {
+                        $query->where(
+                            'selection_status',
+                            $normalizedSelectionStatus
+                        );
+                    } else {
+                        $query->where(
+                            'selection_status',
+                            'like',
+                            "%{$normalizedSelectionStatus}%"
+                        );
+                    }
+
+                    break;
             }
         }
 
