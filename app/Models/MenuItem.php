@@ -36,7 +36,7 @@ class MenuItem extends Model
         'active' => 'boolean',
         'available' => 'boolean',
         'price' => 'decimal:2',
-        'cost_price' => 'decimal:2',
+        'cost_price' => 'decimal:4',
     ];
 
 
