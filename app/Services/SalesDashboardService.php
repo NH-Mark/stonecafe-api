@@ -224,7 +224,7 @@ class SalesDashboardService
 
                 $this->card(
                     'Total COGS',
-                    (float) $currentCogs,
+                    $currentCogs,
                     $this->percentage(
                         (float) $previousCogs,
                         (float) $currentCogs
