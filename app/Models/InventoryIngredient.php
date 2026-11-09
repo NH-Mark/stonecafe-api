@@ -63,6 +63,11 @@ class InventoryIngredient extends Model
         return $this->hasMany(InventoryLocationIngredient::class, 'ingredient_id');
     }
 
+    public function menuItemIngredients(): HasMany
+    {
+        return $this->hasMany(MenuItemIngredient::class, 'ingredient_id');
+    }
+
     public function calculateCostPerUnit(): float
     {
         $buyingPrice = (float) ($this->last_buying_price ?? 0);

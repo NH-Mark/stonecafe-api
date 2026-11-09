@@ -87,6 +87,17 @@ class SalesDashboardService
                 DB::raw('order_items.quantity * menu_items.cost_price')
             );
 
+        $currentProfit = $currentTotalSales - $currentCogs;
+        $previousProfit = $previousTotalSales - $previousCogs;
+
+        $currentProfitPercent = $currentTotalSales > 0
+            ? ($currentProfit / $currentTotalSales) * 100
+            : 0;
+
+        $previousProfitPercent = $previousTotalSales > 0
+            ? ($previousProfit / $previousTotalSales) * 100
+            : 0;
+
         $currentPaidModifiers = OrderItemModifier::query()
             ->join('order_items', 'order_items.id', '=', 'order_item_modifiers.order_item_id')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
@@ -210,6 +221,27 @@ class SalesDashboardService
                     'discount',
                     true
                 ),
+
+                $this->card(
+                    'Total COGS',
+                    $currentCogs,
+                    $this->percentage(
+                        $previousCogs,
+                        $currentCogs
+                    ),
+                    'cogs',
+                    true
+                ),
+
+                [
+                    'title' => 'Profit %',
+                    'value' => number_format($currentProfitPercent, 2) . '%',
+                    'change' => $this->percentage(
+                        $previousProfitPercent,
+                        $currentProfitPercent
+                    ),
+                    'icon' => 'profit',
+                ],
 
                 $this->card(
                     'Refunds',

@@ -49,6 +49,43 @@ class InventoryIngredientController extends Controller
         return new InventoryIngredientResource($inventoryIngredient);
     }
 
+    public function usage(InventoryIngredient $inventoryIngredient)
+    {
+        $rows = $inventoryIngredient->menuItemIngredients()
+            ->with(['menuItem:id,name'])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($row) use ($inventoryIngredient) {
+                $menuItem = $row->menuItem;
+                $quantity = (float) ($row->quantity ?? 0);
+                $costPerUnit = (float) ($row->cost_per_unit ?? 0);
+                $subtotal = (float) ($row->subtotal ?? ($quantity * $costPerUnit));
+
+                return [
+                    'menu_item_id' => $menuItem?->id ?? $row->menu_item_id,
+                    'menu_item_name' => $menuItem?->name,
+                    'used_qty' => $quantity,
+                    'quantity' => $quantity,
+                    'unit_name' => $row->unit_name
+                        ?? $inventoryIngredient->measurementUnit?->name
+                        ?? $inventoryIngredient->buying_unit_name,
+                    'cost_per_unit' => $costPerUnit,
+                    'cost_in_recipe' => $subtotal,
+                    'subtotal' => $subtotal,
+                    'menu_item' => $menuItem ? [
+                        'id' => $menuItem->id,
+                        'name' => $menuItem->name,
+                    ] : null,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $rows,
+        ]);
+    }
+
     public function store(InventoryIngredientRequest $request)
     {
         $ingredient = DB::transaction(function () use ($request) {

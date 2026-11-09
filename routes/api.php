@@ -111,6 +111,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('menu-item-tags', MenuItemTagController::class);
     Route::apiResource('food-symbols', FoodSymbolController::class);
     Route::apiResource('inventory-measurement-units', InventoryMeasurementUnitController::class);
+
+    Route::get(
+        '/inventory-ingredients/{inventoryIngredient}/usage',
+        [InventoryIngredientController::class, 'usage']
+    )->name('inventory-ingredients.usage');
+
     Route::apiResource('inventory-ingredients', InventoryIngredientController::class);
     Route::apiResource('inventory-suppliers', InventorySupplierController::class);
     Route::apiResource('inventory-integredient-categories', InventoryIntegredientCategoryController::class)
