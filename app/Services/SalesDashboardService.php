@@ -222,15 +222,15 @@ class SalesDashboardService
                     true
                 ),
 
-                $this->card(
-                    'Total COGS',
-                    $currentCogs,
-                    $this->percentage(
+                [
+                    'title' => 'Total COGS',
+                    'value' => 'QAR ' . number_format((float) $currentCogs, 2),
+                    'change' => $this->percentage(
                         (float) $previousCogs,
                         (float) $currentCogs
                     ),
-                    'cogs'
-                ),
+                    'icon' => 'cogs',
+                ],
 
                 $this->card(
                     'Total Profit',
