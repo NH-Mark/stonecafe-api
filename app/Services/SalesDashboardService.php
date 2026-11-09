@@ -552,7 +552,7 @@ class SalesDashboardService
                     'category_name' => $item->category_name,
                     'qty' => (int) $item->qty,
                     'sales' => $sales,
-                    'cogs' => $cogs,
+                    'cogs' => round((float) $cogs, 2),
                     'profitability' => [
                         'percentage' => $sales > 0
                             ? round(($profit / $sales) * 100, 2)
@@ -988,7 +988,7 @@ class SalesDashboardService
                     'category_name' => $item->category_name,
                     'qty' => (int) $item->qty,
                     'sales' => $sales,
-                    'cogs' => $cogs,
+                    'cogs' => round((float) $cogs, 2),
                     'profitability' => [
                         'percentage' => $sales > 0
                             ? ($profit / $sales) * 100
