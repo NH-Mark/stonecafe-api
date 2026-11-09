@@ -224,13 +224,12 @@ class SalesDashboardService
 
                 $this->card(
                     'Total COGS',
-                    $currentCogs,
+                    round((float) $currentCogs, 0),
                     $this->percentage(
-                        $previousCogs,
-                        $currentCogs
+                        (float) $previousCogs,
+                        (float) $currentCogs
                     ),
-                    'cogs',
-                    true
+                    'cogs'
                 ),
 
                 [
@@ -992,9 +991,9 @@ class SalesDashboardService
                     'cogs' => $cogs,
                     'profitability' => [
                         'percentage' => $sales > 0
-                            ? round(($profit / $sales) * 100, 2)
+                            ? ($profit / $sales) * 100
                             : 0,
-                        'amount' => round($profit, 2),
+                        'amount' => $profit,
                     ],
                 ];
             })
