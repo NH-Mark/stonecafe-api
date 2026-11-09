@@ -34,6 +34,7 @@ class MenuItemResource extends JsonResource
 
 
             'price' => $this->price,
+            'cost_price' => $this->cost_price,
             'required' => $this->required,
 
             'active' => $this->active,
