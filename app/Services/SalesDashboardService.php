@@ -224,7 +224,7 @@ class SalesDashboardService
 
                 $this->card(
                     'Total COGS',
-                    round((float) $currentCogs, 0),
+                    (float) $currentCogs,
                     $this->percentage(
                         (float) $previousCogs,
                         (float) $currentCogs
@@ -232,15 +232,16 @@ class SalesDashboardService
                     'cogs'
                 ),
 
-                [
-                    'title' => 'Profit %',
-                    'value' => number_format($currentProfitPercent, 2) . '%',
-                    'change' => $this->percentage(
-                        $previousProfitPercent,
-                        $currentProfitPercent
+                $this->card(
+                    'Total Profit',
+                    $currentProfit,
+                    $this->percentage(
+                        $previousProfit,
+                        $currentProfit
                     ),
-                    'icon' => 'profit',
-                ],
+                    'profit',
+                    true
+                ),
 
                 $this->card(
                     'Refunds',
