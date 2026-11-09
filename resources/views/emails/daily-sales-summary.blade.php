@@ -153,7 +153,8 @@
                             <table
                                 width="100%"
                                 cellpadding="0"
-                                cellspacing="0">
+                                cellspacing="0"
+                                style="table-layout:fixed;">
 
                                 <tr>
 
@@ -168,31 +169,30 @@
                                     <td
                                         width="33%"
                                         style="
-                                    padding:5px;
-                                    vertical-align:top;
-                                ">
+                                            padding:5px;
+                                            vertical-align:top;
+                                        ">
 
                                         <table
                                             width="100%"
                                             cellpadding="0"
                                             cellspacing="0"
                                             style="
-                                        border:1px solid #e5e0dc;
-                                        border-radius:8px;
-                                    ">
+                                                border:1px solid #e5e0dc;
+                                                border-radius:8px;
+                                                height:120px;
+                                                min-height:120px;
+                                            ">
 
                                             <tr>
 
                                                 <td
                                                     style="
-                                                padding:16px;
-                                            ">
-
-                                                    <div
-                                                        style="
-                                                    font-size:11px;
-                                                    color:#8a8179;
-                                                ">
+                                                        padding:16px;
+                                                        vertical-align:top;
+                                                        height:120px;
+                                                    ">
+                                                  
                                                         {{ $stat['title'] }}
                                                     </div>
 

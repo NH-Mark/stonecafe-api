@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MenuItem extends Model
 {
@@ -73,6 +74,16 @@ class MenuItem extends Model
         return $this->belongsTo(
             Printer::class
         );
+    }
+
+    public function menuItemIngredients(): HasMany
+    {
+        return $this->hasMany(MenuItemIngredient::class, 'menu_item_id');
+    }
+
+    public function menu_item_ingredients(): HasMany
+    {
+        return $this->menuItemIngredients();
     }
 
     public function locations(): BelongsToMany

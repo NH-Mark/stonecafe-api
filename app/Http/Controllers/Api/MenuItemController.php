@@ -29,7 +29,8 @@ class MenuItemController extends Controller
                 $query->withCount('modifiers');
             },
             'foodSymbols',
-            'menuItemTags'
+            'menuItemTags',
+            'menu_item_ingredients.ingredient',
         ];
 
         $relations['locations'] = function ($query) use ($locationId) {
@@ -64,6 +65,7 @@ class MenuItemController extends Controller
             'modifierGroups.modifiers',
             'foodSymbols',
             'menuItemTags',
+            'menu_item_ingredients.ingredient',
         ];
 
         if ($locationId !== null) {
@@ -171,6 +173,7 @@ class MenuItemController extends Controller
             'modifierGroups.modifiers',
             'foodSymbols',
             'menuItemTags',
+            'menu_item_ingredients.ingredient',
         ];
 
         if ($locationId !== null) {

@@ -79,6 +79,47 @@ class StoreMenuItemRequest extends FormRequest
                 'array'
             ],
 
+            'menu_item_ingredients' => [
+                'sometimes',
+                'array'
+            ],
+
+            'menu_item_ingredients.*.ingredient_id' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:inventory_ingredients,id'
+            ],
+
+            'menu_item_ingredients.*.unit_name' => [
+                'nullable',
+                'string'
+            ],
+
+            'menu_item_ingredients.*.cost_per_unit' => [
+                'required',
+                'numeric',
+                'min:0'
+            ],
+
+            'menu_item_ingredients.*.quantity' => [
+                'required',
+                'numeric',
+                'min:0'
+            ],
+
+            'menu_item_ingredients.*.subtotal' => [
+                'required',
+                'numeric',
+                'min:0'
+            ],
+
+            'menu_item_ingredients.*.sort_order' => [
+                'nullable',
+                'integer',
+                'min:0'
+            ],
+
             'location_statuses.*.location_id' => [
                 'required',
                 'integer',

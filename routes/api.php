@@ -17,6 +17,9 @@ use App\Http\Controllers\Api\EventRegistrationController;
 use App\Http\Controllers\Api\EventRegistrationEmailController;
 use App\Http\Controllers\Api\EventTimeSlotController;
 use App\Http\Controllers\Api\FoodSymbolController;
+use App\Http\Controllers\Api\InventoryIngredientController;
+use App\Http\Controllers\Api\InventoryMeasurementUnitController;
+use App\Http\Controllers\Api\InventorySupplierController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\MenuItemTagController;
 use App\Http\Controllers\Api\ModifierController;
@@ -27,6 +30,7 @@ use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PrintJobController;
 use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\Api\KitchenController;
+use App\Http\Controllers\Api\InventoryIntegredientCategoryController;
 use App\Http\Controllers\Api\OrderSourceController;
 use App\Http\Controllers\Api\PrinterController;
 use App\Http\Controllers\Api\RestaurantTableController;
@@ -106,6 +110,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('menu-item-tags', MenuItemTagController::class);
     Route::apiResource('food-symbols', FoodSymbolController::class);
+    Route::apiResource('inventory-measurement-units', InventoryMeasurementUnitController::class);
+    Route::apiResource('inventory-ingredients', InventoryIngredientController::class);
+    Route::apiResource('inventory-suppliers', InventorySupplierController::class);
+    Route::apiResource('inventory-integredient-categories', InventoryIntegredientCategoryController::class)
+        ->parameters(['inventory-integredient-categories' => 'inventory_integredient_category']);
+    Route::apiResource('inventory-ingredient-categories', InventoryIntegredientCategoryController::class)
+        ->parameters(['inventory-ingredient-categories' => 'inventory_integredient_category']);
 
     Route::put('/account/profile', [AccountController::class, 'updateProfile']);
 

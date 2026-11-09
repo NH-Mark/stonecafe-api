@@ -13,13 +13,15 @@ class MenuItemService
         $foodSymbols = $data['food_symbols'] ?? [];
         $tags = $data['menu_item_tags'] ?? [];
         $locationStatuses = $data['location_statuses'] ?? [];
+        $menuItemIngredients = $data['menu_item_ingredients'] ?? [];
         $defaultActive = (bool) ($data['active'] ?? true);
 
         unset(
             $data['modifier_groups'],
             $data['food_symbols'],
             $data['menu_item_tags'],
-            $data['location_statuses']
+            $data['location_statuses'],
+            $data['menu_item_ingredients']
         );
 
         $item = MenuItem::create($data);
@@ -38,10 +40,13 @@ class MenuItemService
             $tags
         );
 
+        $this->syncMenuItemIngredients($item, $menuItemIngredients);
+
         return $item->load([
             'modifierGroups',
             'foodSymbols',
             'menuItemTags',
+            'menu_item_ingredients.ingredient',
             'printer',
         ]);
     }
@@ -57,13 +62,15 @@ class MenuItemService
         $foodSymbols = $data['food_symbols'] ?? [];
         $tags = $data['menu_item_tags'] ?? [];
         $locationStatuses = $data['location_statuses'] ?? [];
+        $menuItemIngredients = $data['menu_item_ingredients'] ?? [];
         $defaultActive = (bool) ($data['active'] ?? $item->active);
 
         unset(
             $data['modifier_groups'],
             $data['food_symbols'],
             $data['menu_item_tags'],
-            $data['location_statuses']
+            $data['location_statuses'],
+            $data['menu_item_ingredients']
         );
 
         $item->update($data);
@@ -82,11 +89,14 @@ class MenuItemService
             $tags
         );
 
+        $this->syncMenuItemIngredients($item, $menuItemIngredients);
+
         return $item->refresh()->load([
             'modifierGroups',
             'foodSymbols',
             'menuItemTags',
-              'printer',
+            'menu_item_ingredients.ingredient',
+            'printer',
         ]);
     }
 
@@ -124,6 +134,26 @@ class MenuItemService
         $item->menuItemTags()->sync($tags);
     }
 
+    protected function syncMenuItemIngredients(MenuItem $item, array $menuItemIngredients): void
+    {
+        $item->menu_item_ingredients()->delete();
+
+        foreach ($menuItemIngredients as $ingredient) {
+            if (!isset($ingredient['ingredient_id'])) {
+                continue;
+            }
+
+            $item->menu_item_ingredients()->create([
+                'ingredient_id' => (int) $ingredient['ingredient_id'],
+                'unit_name' => $ingredient['unit_name'] ?? null,
+                'cost_per_unit' => (float) ($ingredient['cost_per_unit'] ?? 0),
+                'quantity' => (float) ($ingredient['quantity'] ?? 0),
+                'subtotal' => (float) ($ingredient['subtotal'] ?? 0),
+                'sort_order' => (int) ($ingredient['sort_order'] ?? 0),
+            ]);
+        }
+    }
+
     public function delete(MenuItem $menuItem): void
     {
         $menuItem->locations()->detach();
@@ -133,6 +163,8 @@ class MenuItemService
         $menuItem->foodSymbols()->detach();
 
         $menuItem->menuItemTags()->detach();
+
+        $menuItem->menu_item_ingredients()->delete();
 
         $menuItem->delete();
     }

@@ -76,6 +76,12 @@ class MenuItemResource extends JsonResource
                 []
             ),
 
+            'menu_item_ingredients' => $this->whenLoaded(
+                'menu_item_ingredients',
+                fn () => MenuItemIngredientResource::collection($this->menu_item_ingredients),
+                []
+            ),
+
             'printer_id' => $this->printer?->id,
             'printer' => $this->printer,
 
