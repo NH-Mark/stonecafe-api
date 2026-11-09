@@ -31,8 +31,8 @@ class InventorySupplierRequest extends FormRequest
                 'nullable',
                 'email',
                 'max:255',
-                Rule::unique('inventory_suppliers', 'email')
-                    ->ignore($this->inventory_supplier?->id),
+                // Rule::unique('inventory_suppliers', 'email')
+                //     ->ignore($this->inventory_supplier?->id),
             ],
             'phone' => [
                 'nullable',
