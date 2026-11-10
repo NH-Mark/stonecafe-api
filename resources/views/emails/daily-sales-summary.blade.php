@@ -11,6 +11,25 @@
 
     <title>Order Summary</title>
 
+    <style type="text/css">
+        @media only screen and (max-width:600px) {
+            .desktop-stats {
+                display:none !important;
+                width:0 !important;
+                max-height:0 !important;
+                overflow:hidden !important;
+                visibility:hidden !important;
+            }
+            .mobile-stats {
+                display:table !important;
+                width:100% !important;
+                max-height:none !important;
+                overflow:visible !important;
+                visibility:visible !important;
+            }
+        }
+    </style>
+
 </head>
 
 <body
@@ -147,93 +166,81 @@
                     {{-- SUMMARY CARDS --}}
 
                     <tr>
+                        <td style="padding:0 30px;">
 
-                        <td style="padding:20px 30px;">
+                            <!-- Consistent vertical space above the cards in email clients -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                <tr>
+                                    <td height="24" style="height:24px; line-height:24px; font-size:1px;">&nbsp;</td>
+                                </tr>
+                            </table>
 
+                            <!-- DESKTOP LAYOUT: Outlook desktop displays only this version -->
                             <table
+                                class="desktop-stats"
                                 width="100%"
                                 cellpadding="0"
                                 cellspacing="0"
-                                style="table-layout:fixed;">
-
+                                border="0"
+                                role="presentation"
+                                style="width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;"
+                            >
                                 <tr>
-
                                     @foreach($dashboard['stats'] as $stat)
-
-                                    @if(in_array($stat['title'], [
-                                    'Total Sales',
-                                    'Orders',
-                                    'Gross Sales'
-                                    ]))
-
-                                    <td
-                                        width="33%"
-                                        style="
-                                            padding:5px;
-                                            vertical-align:top;
-                                        ">
-
-                                        <table
-                                            width="100%"
-                                            cellpadding="0"
-                                            cellspacing="0"
-                                            style="
-                                                border:1px solid #e5e0dc;
-                                                border-radius:8px;
-                                                height:120px;
-                                                min-height:120px;
-                                            ">
-
-                                            <tr>
-
-                                                <td
-                                                    style="
-                                                        padding:16px;
-                                                        vertical-align:top;
-                                                        height:120px;
-                                                    ">
-                                                  
-                                                        {{ $stat['title'] }}
-                                                    </div>
-
-                                                    <div
-                                                        style="
-                                                    margin-top:7px;
-                                                    font-size:20px;
-                                                    font-weight:bold;
-                                                    color:#40332a;
-                                                ">
-                                                        {{ $stat['value'] }}
-                                                    </div>
-
-                                                    <!-- <div
-                                                        style="
-                                                    margin-top:5px;
-                                                    font-size:11px;
-                                                    color:#6b8e5a;
-                                                ">
-                                                        {{ $stat['change'] }}
-                                                        vs previous period
-                                                    </div> -->
-
-                                                </td>
-
-                                            </tr>
-
-                                        </table>
-
-                                    </td>
-
-                                    @endif
-
+                                        @if(in_array($stat['title'], ['Total Sales', 'Orders', 'Gross Sales']))
+                                            <td width="33.33%" valign="top" style="width:33.33%; padding:0 6px; vertical-align:top;">
+                                                <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%; border:1px solid #e5e0dc; border-radius:8px; border-collapse:separate;">
+                                                    <tr>
+                                                        <td valign="top" style="padding:12px 14px 10px; vertical-align:top;">
+                                                            <div style="font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:17px; color:#766b62;">{{ $stat['title'] }}</div>
+                                                            <div style="margin-top:5px; font-family:Arial,Helvetica,sans-serif; font-size:20px; line-height:25px; font-weight:bold; color:#40332a; word-break:break-word;">{{ $stat['value'] }}</div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        @endif
                                     @endforeach
-
                                 </tr>
+                            </table>
 
+                            <!-- MOBILE LAYOUT: deliberately excluded from classic Outlook desktop -->
+                            <!--[if !mso]><!-- -->
+                            <table
+                                class="mobile-stats"
+                                width="100%"
+                                cellpadding="0"
+                                cellspacing="0"
+                                border="0"
+                                role="presentation"
+                                style="display:none; width:100%; max-height:0; overflow:hidden; mso-hide:all;"
+                            >
+                                @foreach($dashboard['stats'] as $stat)
+                                    @if(in_array($stat['title'], ['Total Sales', 'Orders', 'Gross Sales']))
+                                        <tr>
+                                            <td style="padding:0 0 14px 0;">
+                                                <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%; border:1px solid #e5e0dc; border-radius:8px;">
+                                                    <tr>
+                                                        <td valign="top" style="padding:22px 20px; vertical-align:top;">
+                                                            <div style="font-family:Arial,Helvetica,sans-serif; font-size:13px; line-height:20px; color:#766b62;">{{ $stat['title'] }}</div>
+                                                            <div style="margin-top:10px; font-family:Arial,Helvetica,sans-serif; font-size:20px; line-height:27px; font-weight:bold; color:#40332a; word-break:break-word;">{{ $stat['value'] }}</div>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            </table>
+                            <!--<![endif]-->
+
+                            <!-- Consistent vertical space below the cards -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                <tr>
+                                    <td height="28" style="height:28px; line-height:28px; font-size:1px;">&nbsp;</td>
+                                </tr>
                             </table>
 
                         </td>
-
                     </tr>
 
 
