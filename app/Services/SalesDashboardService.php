@@ -525,6 +525,7 @@ class SalesDashboardService
             ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
+            menu_items.sku as sku,
             menu_categories.id as category_id,
             menu_categories.name as category_name,
             SUM(order_items.quantity) as qty,
@@ -534,6 +535,7 @@ class SalesDashboardService
             ->groupBy(
                 'menu_items.id',
                 'menu_items.name',
+                'menu_items.sku',
                 'menu_categories.id',
                 'menu_categories.name'
             )
@@ -547,6 +549,7 @@ class SalesDashboardService
                 return [
                     'menu_item_id' => (int) $item->menu_item_id,
                     'name' => $item->name,
+                    'sku' => $item->sku,
                     'category_id' => $item->category_id
                         ? (int) $item->category_id
                         : null,
@@ -618,7 +621,10 @@ class SalesDashboardService
             SUM(order_item_modifiers.quantity) as qty,
             SUM(
                 order_item_modifiers.quantity * modifiers.price
-            ) as total_amount
+            ) as total_amount,
+            SUM(
+                order_item_modifiers.quantity * menu_items.cost_price
+            ) as cogs
         ")
             ->groupBy(
                 'menu_items.id',
@@ -645,6 +651,7 @@ class SalesDashboardService
                     'qty' => (int) $item->qty,
                     'price' => (float) $item->modifier_price,
                     'sales' => (float) $item->total_amount,
+                    'cogs' => round((float) $item->cogs, 2),
                 ];
             })
             ->toArray();
@@ -1063,7 +1070,10 @@ class SalesDashboardService
             SUM(order_item_modifiers.quantity) as qty,
             SUM(
                 order_item_modifiers.quantity * modifiers.price
-            ) as total_amount
+            ) as total_amount,
+            SUM(
+                order_item_modifiers.quantity * menu_items.cost_price
+            ) as cogs
         ")
             ->groupBy(
                 'menu_items.id',
@@ -1088,6 +1098,7 @@ class SalesDashboardService
                     'qty' => (int) $item->qty,
                     'price' => (float) $item->modifier_price,
                     'sales' => (float) $item->total_amount,
+                    'cogs' => round((float) $item->cogs, 2),
                 ];
             })
             ->toArray();
