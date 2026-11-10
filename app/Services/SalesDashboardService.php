@@ -961,6 +961,7 @@ class SalesDashboardService
             ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
+            menu_items.sku as sku,
             menu_categories.id as category_id,
             menu_categories.name as category_name,
             SUM(order_items.quantity) as qty,
@@ -970,6 +971,7 @@ class SalesDashboardService
             ->groupBy(
                 'menu_items.id',
                 'menu_items.name',
+                'menu_items.sku',
                 'menu_categories.id',
                 'menu_categories.name'
             )
@@ -983,6 +985,7 @@ class SalesDashboardService
                 return [
                     'menu_item_id' => (int) $item->menu_item_id,
                     'name' => $item->name,
+                    'sku' => $item->sku,
                     'category_id' => $item->category_id
                         ? (int) $item->category_id
                         : null,
