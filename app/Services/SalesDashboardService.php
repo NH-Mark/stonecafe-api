@@ -499,158 +499,230 @@ class SalesDashboardService
             ->toArray();
     }
     private function topGrossingItems(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
-        $query = OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-            ->leftJoin('menu_categories', 'menu_categories.id', '=', 'menu_items.menu_category_id');
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
+    $payments = $this->paymentAllocationQuery(
+        $request,
+        $from,
+        $to
+    );
 
-        $this->applyFilters($query, $request, $from, $to);
+    $query = DB::table('order_items')
+        ->join('orders', 'orders.id', '=', 'order_items.order_id')
+        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+        ->leftJoin(
+            'menu_categories',
+            'menu_categories.id',
+            '=',
+            'menu_items.menu_category_id'
+        )
+        ->joinSub($payments, 'payment_totals', function ($join) {
+            $join->on('payment_totals.order_id', '=', 'orders.id');
+        });
 
-        // Optional category filter
-        if ($request->filled('category_id')) {
-            $query->where('menu_items.category_id', $request->category_id);
-        }
+    if ($request->filled('category_id')) {
+        $query->where(
+            'menu_items.category_id',
+            $request->category_id
+        );
+    }
 
-        return $query
-            ->selectRaw("
+    return $query
+        ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
             menu_items.sku as sku,
             menu_categories.id as category_id,
             menu_categories.name as category_name,
-            SUM(order_items.quantity) as qty,
-            SUM(order_items.quantity * order_items.unit_price) as sales,
-            SUM(order_items.quantity * menu_items.cost_price) as cogs
+
+            SUM(
+                order_items.quantity *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as qty,
+
+            SUM(
+                order_items.quantity * order_items.unit_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as sales,
+
+            SUM(
+                order_items.quantity * menu_items.cost_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as cogs
         ")
-            ->groupBy(
-                'menu_items.id',
-                'menu_items.name',
-                'menu_items.sku',
-                'menu_categories.id',
-                'menu_categories.name'
-            )
-            ->orderByDesc('sales')
-            ->get()
-            ->map(function ($item) {
-                $sales = (float) $item->sales;
-                $cogs = (float) $item->cogs;
-                $profit = $sales - $cogs;
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'menu_items.sku',
+            'menu_categories.id',
+            'menu_categories.name'
+        )
+        ->orderByDesc('sales')
+        ->get()
+        ->map(function ($item) {
+            $sales = (float) $item->sales;
+            $cogs = (float) $item->cogs;
+            $profit = $sales - $cogs;
 
-                return [
-                    'menu_item_id' => (int) $item->menu_item_id,
-                    'name' => $item->name,
-                    'sku' => $item->sku,
-                    'category_id' => $item->category_id
-                        ? (int) $item->category_id
-                        : null,
-                    'category_name' => $item->category_name,
-                    'qty' => (int) $item->qty,
-                    'sales' => $sales,
-                    'cogs' => round((float) $cogs, 2),
-                    'profitability' => [
-                        'percentage' => $sales > 0
-                            ? round(($profit / $sales) * 100, 2)
-                            : 0,
-                        'amount' => round($profit, 2),
-                    ],
-                ];
-            })
-            ->toArray();
-    }
+            return [
+                'menu_item_id' => (int) $item->menu_item_id,
+                'name' => $item->name,
+                'sku' => $item->sku,
+                'category_id' => $item->category_id
+                    ? (int) $item->category_id
+                    : null,
+                'category_name' => $item->category_name,
+                'qty' => round((float) $item->qty, 2),
+                'sales' => round($sales, 2),
+                'cogs' => round($cogs, 2),
+                'profitability' => [
+                    'percentage' => $sales > 0
+                        ? round(($profit / $sales) * 100, 2)
+                        : 0,
+                    'amount' => round($profit, 2),
+                ],
+            ];
+        })
+        ->toArray();
+}
     private function topGrossingModifiers(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
-        $query = OrderItemModifier::query()
-            ->join(
-                'order_items',
-                'order_items.id',
-                '=',
-                'order_item_modifiers.order_item_id'
-            )
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
-            ->join(
-                'menu_items',
-                'menu_items.id',
-                '=',
-                'order_items.menu_item_id'
-            )
-            ->leftJoin(
-                'menu_categories',
-                'menu_categories.id',
-                '=',
-                'menu_items.menu_category_id'
-            )
-            ->join(
-                'modifiers',
-                'modifiers.id',
-                '=',
-                'order_item_modifiers.modifier_id'
-            );
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
+    $payments = $this->paymentAllocationQuery(
+        $request,
+        $from,
+        $to
+    );
 
-        $this->applyFilters($query, $request, $from, $to);
+    $query = DB::table('order_item_modifiers')
+        ->join(
+            'order_items',
+            'order_items.id',
+            '=',
+            'order_item_modifiers.order_item_id'
+        )
+        ->join('orders', 'orders.id', '=', 'order_items.order_id')
+        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+        ->leftJoin(
+            'menu_categories',
+            'menu_categories.id',
+            '=',
+            'menu_items.menu_category_id'
+        )
+        ->join(
+            'modifiers',
+            'modifiers.id',
+            '=',
+            'order_item_modifiers.modifier_id'
+        )
+        ->joinSub($payments, 'payment_totals', function ($join) {
+            $join->on('payment_totals.order_id', '=', 'orders.id');
+        });
 
-        // Optional category filter
-        if ($request->filled('category_id')) {
-            $query->where('menu_items.category_id', $request->category_id);
-        }
+    if ($request->filled('category_id')) {
+        $query->where(
+            'menu_items.category_id',
+            $request->category_id
+        );
+    }
 
-        return $query
-            ->selectRaw("
+    return $query
+        ->selectRaw("
             menu_items.name as menu_item,
             menu_items.menu_category_id as category_id,
             menu_categories.name as category_name,
             modifiers.name as name,
             modifiers.price as modifier_price,
-            SUM(order_item_modifiers.quantity) as qty,
+
             SUM(
-                order_item_modifiers.quantity * modifiers.price
+                order_item_modifiers.quantity *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as qty,
+
+            SUM(
+                order_item_modifiers.quantity * modifiers.price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
             ) as total_amount,
+
             SUM(
-                order_item_modifiers.quantity * menu_items.cost_price
+                order_item_modifiers.quantity * menu_items.cost_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
             ) as cogs
         ")
-            ->groupBy(
-                'menu_items.id',
-                'menu_items.name',
-                'menu_items.menu_category_id',
-                'menu_categories.name',
-                'modifiers.id',
-                'modifiers.name',
-                'modifiers.price'
-            )
-            ->havingRaw("
-            SUM(order_item_modifiers.quantity * modifiers.price) > 0
-        ")
-            ->orderByDesc('total_amount')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'menu_item' => $item->menu_item,
-                    'category_id' => $item->category_id
-                        ? (int) $item->category_id
-                        : null,
-                    'category_name' => $item->category_name,
-                    'name' => $item->name,
-                    'qty' => (int) $item->qty,
-                    'price' => (float) $item->modifier_price,
-                    'sales' => (float) $item->total_amount,
-                    'cogs' => round((float) $item->cogs, 2),
-                ];
-            })
-            ->toArray();
-    }
-
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'menu_items.menu_category_id',
+            'menu_categories.name',
+            'modifiers.id',
+            'modifiers.name',
+            'modifiers.price'
+        )
+        ->havingRaw('SUM(order_item_modifiers.quantity * modifiers.price) > 0')
+        ->orderByDesc('total_amount')
+        ->get()
+        ->map(function ($item) {
+            return [
+                'menu_item' => $item->menu_item,
+                'category_id' => $item->category_id
+                    ? (int) $item->category_id
+                    : null,
+                'category_name' => $item->category_name,
+                'name' => $item->name,
+                'qty' => round((float) $item->qty, 2),
+                'price' => (float) $item->modifier_price,
+                'sales' => round((float) $item->total_amount, 2),
+                'cogs' => round((float) $item->cogs, 2),
+            ];
+        })
+        ->toArray();
+}
     // private function topSellingModifiers(
     //     Request $request,
     //     Carbon $from,
@@ -992,156 +1064,233 @@ class SalesDashboardService
 
 
     private function topSellingItems(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
-        $query = OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-            ->leftJoin('menu_categories', 'menu_categories.id', '=', 'menu_items.menu_category_id');
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
+    $payments = $this->paymentAllocationQuery(
+        $request,
+        $from,
+        $to
+    );
 
-        $this->applyFilters($query, $request, $from, $to);
+    $query = DB::table('order_items')
+        ->join('orders', 'orders.id', '=', 'order_items.order_id')
+        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+        ->leftJoin(
+            'menu_categories',
+            'menu_categories.id',
+            '=',
+            'menu_items.menu_category_id'
+        )
+        ->joinSub($payments, 'payment_totals', function ($join) {
+            $join->on('payment_totals.order_id', '=', 'orders.id');
+        });
 
-        return $query
-            ->selectRaw("
+    if ($request->filled('category_id')) {
+        $query->where(
+            'menu_items.menu_category_id',
+            $request->category_id
+        );
+    }
+
+    return $query
+        ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
             menu_items.sku as sku,
             menu_categories.id as category_id,
             menu_categories.name as category_name,
-            SUM(order_items.quantity) as qty,
-            SUM(order_items.quantity * order_items.unit_price) as sales,
-            SUM(order_items.quantity * menu_items.cost_price) as cogs
-        ")
-            ->groupBy(
-                'menu_items.id',
-                'menu_items.name',
-                'menu_items.sku',
-                'menu_categories.id',
-                'menu_categories.name'
-            )
-            ->orderByDesc('qty')
-            ->get()
-            ->map(function ($item) {
-                $sales = (float) $item->sales;
-                $cogs = (float) $item->cogs;
-                $profit = $sales - $cogs;
 
-                return [
-                    'menu_item_id' => (int) $item->menu_item_id,
-                    'name' => $item->name,
-                    'sku' => $item->sku,
-                    'category_id' => $item->category_id
-                        ? (int) $item->category_id
-                        : null,
-                    'category_name' => $item->category_name,
-                    'qty' => (int) $item->qty,
-                    'sales' => $sales,
-                    'cogs' => round((float) $cogs, 2),
-                    'profitability' => [
-                        'percentage' => $sales > 0
-                            ? ($profit / $sales) * 100
-                            : 0,
-                        'amount' => $profit,
-                    ],
-                ];
-            })
-            ->toArray();
-    }
+            SUM(
+                order_items.quantity *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as qty,
+
+            SUM(
+                order_items.quantity * order_items.unit_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as sales,
+
+            SUM(
+                order_items.quantity * menu_items.cost_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as cogs
+        ")
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'menu_items.sku',
+            'menu_categories.id',
+            'menu_categories.name'
+        )
+        ->orderByDesc('qty')
+        ->get()
+        ->map(function ($item) {
+            $sales = (float) $item->sales;
+            $cogs = (float) $item->cogs;
+            $profit = $sales - $cogs;
+
+            return [
+                'menu_item_id' => (int) $item->menu_item_id,
+                'name' => $item->name,
+                'sku' => $item->sku,
+                'category_id' => $item->category_id
+                    ? (int) $item->category_id
+                    : null,
+                'category_name' => $item->category_name,
+                'qty' => round((float) $item->qty, 2),
+                'sales' => round($sales, 2),
+                'cogs' => round($cogs, 2),
+                'profitability' => [
+                    'percentage' => $sales > 0
+                        ? round(($profit / $sales) * 100, 2)
+                        : 0,
+                    'amount' => round($profit, 2),
+                ],
+            ];
+        })
+        ->toArray();
+}
 
 
     private function topSellingModifiers(
-        Request $request,
-        Carbon $from,
-        Carbon $to
-    ): array {
-        $query = OrderItemModifier::query()
-            ->join(
-                'order_items',
-                'order_items.id',
-                '=',
-                'order_item_modifiers.order_item_id'
-            )
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
-            ->join(
-                'menu_items',
-                'menu_items.id',
-                '=',
-                'order_items.menu_item_id'
-            )
-            ->leftJoin(
-                'menu_categories',
-                'menu_categories.id',
-                '=',
-                'menu_items.menu_category_id'
-            )
-            ->join(
-                'modifiers',
-                'modifiers.id',
-                '=',
-                'order_item_modifiers.modifier_id'
-            );
+    Request $request,
+    Carbon $from,
+    Carbon $to
+): array {
+    $payments = $this->paymentAllocationQuery(
+        $request,
+        $from,
+        $to
+    );
 
-        $this->applyFilters($query, $request, $from, $to);
+    $query = DB::table('order_item_modifiers')
+        ->join(
+            'order_items',
+            'order_items.id',
+            '=',
+            'order_item_modifiers.order_item_id'
+        )
+        ->join('orders', 'orders.id', '=', 'order_items.order_id')
+        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+        ->leftJoin(
+            'menu_categories',
+            'menu_categories.id',
+            '=',
+            'menu_items.menu_category_id'
+        )
+        ->join(
+            'modifiers',
+            'modifiers.id',
+            '=',
+            'order_item_modifiers.modifier_id'
+        )
+        ->joinSub($payments, 'payment_totals', function ($join) {
+            $join->on('payment_totals.order_id', '=', 'orders.id');
+        });
 
-        // Filter by the selected menu item category
-        if ($request->filled('category_id')) {
-            $query->where(
-                'menu_items.menu_category_id',
-                $request->category_id
-            );
-        }
+    if ($request->filled('category_id')) {
+        $query->where(
+            'menu_items.menu_category_id',
+            $request->category_id
+        );
+    }
 
-        return $query
-            ->selectRaw("
+    return $query
+        ->selectRaw("
             menu_items.name as menu_item,
             menu_items.menu_category_id as category_id,
             menu_categories.name as category_name,
             modifiers.id as modifier_id,
             modifiers.name as name,
             modifiers.price as modifier_price,
-            SUM(order_item_modifiers.quantity) as qty,
+
             SUM(
-                order_item_modifiers.quantity * modifiers.price
+                order_item_modifiers.quantity *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
+            ) as qty,
+
+            SUM(
+                order_item_modifiers.quantity * modifiers.price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
             ) as total_amount,
+
             SUM(
-                order_item_modifiers.quantity * menu_items.cost_price
+                order_item_modifiers.quantity * menu_items.cost_price *
+                CASE
+                    WHEN orders.total_amount > 0
+                    THEN LEAST(
+                        payment_totals.paid_amount / orders.total_amount,
+                        1
+                    )
+                    ELSE 0
+                END
             ) as cogs
         ")
-            ->groupBy(
-                'menu_items.id',
-                'menu_items.name',
-                'menu_items.menu_category_id',
-                'menu_categories.name',
-                'modifiers.id',
-                'modifiers.name',
-                'modifiers.price'
-            )
-            ->orderByDesc('qty')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'menu_item' => $item->menu_item,
-                    'category_id' => $item->category_id !== null
-                        ? (int) $item->category_id
-                        : null,
-                    'category_name' => $item->category_name,
-                    'modifier_id' => (int) $item->modifier_id,
-                    'name' => $item->name,
-                    'qty' => (int) $item->qty,
-                    'price' => (float) $item->modifier_price,
-                    'sales' => (float) $item->total_amount,
-                    'cogs' => round((float) $item->cogs, 2),
-                ];
-            })
-            ->toArray();
-    }
+        ->groupBy(
+            'menu_items.id',
+            'menu_items.name',
+            'menu_items.menu_category_id',
+            'menu_categories.name',
+            'modifiers.id',
+            'modifiers.name',
+            'modifiers.price'
+        )
+        ->orderByDesc('qty')
+        ->get()
+        ->map(function ($item) {
+            return [
+                'menu_item' => $item->menu_item,
+                'category_id' => $item->category_id !== null
+                    ? (int) $item->category_id
+                    : null,
+                'category_name' => $item->category_name,
+                'modifier_id' => (int) $item->modifier_id,
+                'name' => $item->name,
+                'qty' => round((float) $item->qty, 2),
+                'price' => (float) $item->modifier_price,
+                'sales' => round((float) $item->total_amount, 2),
+                'cogs' => round((float) $item->cogs, 2),
+            ];
+        })
+        ->toArray();
+}
 
     private function salesByPaymentMethod(
         Request $request,
@@ -1635,5 +1784,42 @@ class SalesDashboardService
             ->sum(DB::raw("
             m.modifier_total * po.paid_ratio
         "));
+    }
+
+    private function paymentAllocationQuery(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ) {
+        $query = DB::table('payments')
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED);
+
+        if ($request->filled('location_id')) {
+            $query->where('orders.location_id', $request->location_id);
+        }
+
+        if ($request->filled('order_type')) {
+            $query->where('orders.order_type_id', $request->order_type);
+        }
+
+        if ($request->filled('order_source_id')) {
+            $query->where('orders.order_source_id', $request->order_source_id);
+        }
+
+        if ($request->filled('payment_method_id')) {
+            $query->where(
+                'payments.payment_method_id',
+                $request->payment_method_id
+            );
+        }
+
+        return $query
+            ->selectRaw('
+            payments.order_id,
+            SUM(payments.amount) as paid_amount
+        ')
+            ->groupBy('payments.order_id');
     }
 }
