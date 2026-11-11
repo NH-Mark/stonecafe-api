@@ -499,38 +499,38 @@ class SalesDashboardService
             ->toArray();
     }
     private function topGrossingItems(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
-    $payments = $this->paymentAllocationQuery(
-        $request,
-        $from,
-        $to
-    );
-
-    $query = DB::table('order_items')
-        ->join('orders', 'orders.id', '=', 'order_items.order_id')
-        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-        ->leftJoin(
-            'menu_categories',
-            'menu_categories.id',
-            '=',
-            'menu_items.menu_category_id'
-        )
-        ->joinSub($payments, 'payment_totals', function ($join) {
-            $join->on('payment_totals.order_id', '=', 'orders.id');
-        });
-
-    if ($request->filled('category_id')) {
-        $query->where(
-            'menu_items.category_id',
-            $request->category_id
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        $payments = $this->paymentAllocationQuery(
+            $request,
+            $from,
+            $to
         );
-    }
 
-    return $query
-        ->selectRaw("
+        $query = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->leftJoin(
+                'menu_categories',
+                'menu_categories.id',
+                '=',
+                'menu_items.menu_category_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            });
+
+        if ($request->filled('category_id')) {
+            $query->where(
+                'menu_items.category_id',
+                $request->category_id
+            );
+        }
+
+        return $query
+            ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
             menu_items.sku as sku,
@@ -573,86 +573,86 @@ class SalesDashboardService
                 END
             ) as cogs
         ")
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'menu_items.sku',
-            'menu_categories.id',
-            'menu_categories.name'
-        )
-        ->orderByDesc('sales')
-        ->get()
-        ->map(function ($item) {
-            $sales = (float) $item->sales;
-            $cogs = (float) $item->cogs;
-            $profit = $sales - $cogs;
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'menu_items.sku',
+                'menu_categories.id',
+                'menu_categories.name'
+            )
+            ->orderByDesc('sales')
+            ->get()
+            ->map(function ($item) {
+                $sales = (float) $item->sales;
+                $cogs = (float) $item->cogs;
+                $profit = $sales - $cogs;
 
-            return [
-                'menu_item_id' => (int) $item->menu_item_id,
-                'name' => $item->name,
-                'sku' => $item->sku,
-                'category_id' => $item->category_id
-                    ? (int) $item->category_id
-                    : null,
-                'category_name' => $item->category_name,
-                'qty' => round((float) $item->qty, 2),
-                'sales' => round($sales, 2),
-                'cogs' => round($cogs, 2),
-                'profitability' => [
-                    'percentage' => $sales > 0
-                        ? round(($profit / $sales) * 100, 2)
-                        : 0,
-                    'amount' => round($profit, 2),
-                ],
-            ];
-        })
-        ->toArray();
-}
-    private function topGrossingModifiers(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
-    $payments = $this->paymentAllocationQuery(
-        $request,
-        $from,
-        $to
-    );
-
-    $query = DB::table('order_item_modifiers')
-        ->join(
-            'order_items',
-            'order_items.id',
-            '=',
-            'order_item_modifiers.order_item_id'
-        )
-        ->join('orders', 'orders.id', '=', 'order_items.order_id')
-        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-        ->leftJoin(
-            'menu_categories',
-            'menu_categories.id',
-            '=',
-            'menu_items.menu_category_id'
-        )
-        ->join(
-            'modifiers',
-            'modifiers.id',
-            '=',
-            'order_item_modifiers.modifier_id'
-        )
-        ->joinSub($payments, 'payment_totals', function ($join) {
-            $join->on('payment_totals.order_id', '=', 'orders.id');
-        });
-
-    if ($request->filled('category_id')) {
-        $query->where(
-            'menu_items.category_id',
-            $request->category_id
-        );
+                return [
+                    'menu_item_id' => (int) $item->menu_item_id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'category_id' => $item->category_id
+                        ? (int) $item->category_id
+                        : null,
+                    'category_name' => $item->category_name,
+                    'qty' => round((float) $item->qty, 2),
+                    'sales' => round($sales, 2),
+                    'cogs' => round($cogs, 2),
+                    'profitability' => [
+                        'percentage' => $sales > 0
+                            ? round(($profit / $sales) * 100, 2)
+                            : 0,
+                        'amount' => round($profit, 2),
+                    ],
+                ];
+            })
+            ->toArray();
     }
+    private function topGrossingModifiers(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        $payments = $this->paymentAllocationQuery(
+            $request,
+            $from,
+            $to
+        );
 
-    return $query
-        ->selectRaw("
+        $query = DB::table('order_item_modifiers')
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_modifiers.order_item_id'
+            )
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->leftJoin(
+                'menu_categories',
+                'menu_categories.id',
+                '=',
+                'menu_items.menu_category_id'
+            )
+            ->join(
+                'modifiers',
+                'modifiers.id',
+                '=',
+                'order_item_modifiers.modifier_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            });
+
+        if ($request->filled('category_id')) {
+            $query->where(
+                'menu_items.category_id',
+                $request->category_id
+            );
+        }
+
+        return $query
+            ->selectRaw("
             menu_items.name as menu_item,
             menu_items.menu_category_id as category_id,
             menu_categories.name as category_name,
@@ -695,34 +695,34 @@ class SalesDashboardService
                 END
             ) as cogs
         ")
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'menu_items.menu_category_id',
-            'menu_categories.name',
-            'modifiers.id',
-            'modifiers.name',
-            'modifiers.price'
-        )
-        ->havingRaw('SUM(order_item_modifiers.quantity * modifiers.price) > 0')
-        ->orderByDesc('total_amount')
-        ->get()
-        ->map(function ($item) {
-            return [
-                'menu_item' => $item->menu_item,
-                'category_id' => $item->category_id
-                    ? (int) $item->category_id
-                    : null,
-                'category_name' => $item->category_name,
-                'name' => $item->name,
-                'qty' => round((float) $item->qty, 2),
-                'price' => (float) $item->modifier_price,
-                'sales' => round((float) $item->total_amount, 2),
-                'cogs' => round((float) $item->cogs, 2),
-            ];
-        })
-        ->toArray();
-}
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'menu_items.menu_category_id',
+                'menu_categories.name',
+                'modifiers.id',
+                'modifiers.name',
+                'modifiers.price'
+            )
+            ->havingRaw('SUM(order_item_modifiers.quantity * modifiers.price) > 0')
+            ->orderByDesc('total_amount')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'menu_item' => $item->menu_item,
+                    'category_id' => $item->category_id
+                        ? (int) $item->category_id
+                        : null,
+                    'category_name' => $item->category_name,
+                    'name' => $item->name,
+                    'qty' => round((float) $item->qty, 2),
+                    'price' => (float) $item->modifier_price,
+                    'sales' => round((float) $item->total_amount, 2),
+                    'cogs' => round((float) $item->cogs, 2),
+                ];
+            })
+            ->toArray();
+    }
     // private function topSellingModifiers(
     //     Request $request,
     //     Carbon $from,
@@ -1064,38 +1064,38 @@ class SalesDashboardService
 
 
     private function topSellingItems(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
-    $payments = $this->paymentAllocationQuery(
-        $request,
-        $from,
-        $to
-    );
-
-    $query = DB::table('order_items')
-        ->join('orders', 'orders.id', '=', 'order_items.order_id')
-        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-        ->leftJoin(
-            'menu_categories',
-            'menu_categories.id',
-            '=',
-            'menu_items.menu_category_id'
-        )
-        ->joinSub($payments, 'payment_totals', function ($join) {
-            $join->on('payment_totals.order_id', '=', 'orders.id');
-        });
-
-    if ($request->filled('category_id')) {
-        $query->where(
-            'menu_items.menu_category_id',
-            $request->category_id
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        $payments = $this->paymentAllocationQuery(
+            $request,
+            $from,
+            $to
         );
-    }
 
-    return $query
-        ->selectRaw("
+        $query = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->leftJoin(
+                'menu_categories',
+                'menu_categories.id',
+                '=',
+                'menu_items.menu_category_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            });
+
+        if ($request->filled('category_id')) {
+            $query->where(
+                'menu_items.menu_category_id',
+                $request->category_id
+            );
+        }
+
+        return $query
+            ->selectRaw("
             menu_items.id as menu_item_id,
             menu_items.name as name,
             menu_items.sku as sku,
@@ -1138,88 +1138,88 @@ class SalesDashboardService
                 END
             ) as cogs
         ")
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'menu_items.sku',
-            'menu_categories.id',
-            'menu_categories.name'
-        )
-        ->orderByDesc('qty')
-        ->get()
-        ->map(function ($item) {
-            $sales = (float) $item->sales;
-            $cogs = (float) $item->cogs;
-            $profit = $sales - $cogs;
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'menu_items.sku',
+                'menu_categories.id',
+                'menu_categories.name'
+            )
+            ->orderByDesc('qty')
+            ->get()
+            ->map(function ($item) {
+                $sales = (float) $item->sales;
+                $cogs = (float) $item->cogs;
+                $profit = $sales - $cogs;
 
-            return [
-                'menu_item_id' => (int) $item->menu_item_id,
-                'name' => $item->name,
-                'sku' => $item->sku,
-                'category_id' => $item->category_id
-                    ? (int) $item->category_id
-                    : null,
-                'category_name' => $item->category_name,
-                'qty' => round((float) $item->qty, 2),
-                'sales' => round($sales, 2),
-                'cogs' => round($cogs, 2),
-                'profitability' => [
-                    'percentage' => $sales > 0
-                        ? round(($profit / $sales) * 100, 2)
-                        : 0,
-                    'amount' => round($profit, 2),
-                ],
-            ];
-        })
-        ->toArray();
-}
+                return [
+                    'menu_item_id' => (int) $item->menu_item_id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'category_id' => $item->category_id
+                        ? (int) $item->category_id
+                        : null,
+                    'category_name' => $item->category_name,
+                    'qty' => round((float) $item->qty, 2),
+                    'sales' => round($sales, 2),
+                    'cogs' => round($cogs, 2),
+                    'profitability' => [
+                        'percentage' => $sales > 0
+                            ? round(($profit / $sales) * 100, 2)
+                            : 0,
+                        'amount' => round($profit, 2),
+                    ],
+                ];
+            })
+            ->toArray();
+    }
 
 
     private function topSellingModifiers(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): array {
-    $payments = $this->paymentAllocationQuery(
-        $request,
-        $from,
-        $to
-    );
-
-    $query = DB::table('order_item_modifiers')
-        ->join(
-            'order_items',
-            'order_items.id',
-            '=',
-            'order_item_modifiers.order_item_id'
-        )
-        ->join('orders', 'orders.id', '=', 'order_items.order_id')
-        ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
-        ->leftJoin(
-            'menu_categories',
-            'menu_categories.id',
-            '=',
-            'menu_items.menu_category_id'
-        )
-        ->join(
-            'modifiers',
-            'modifiers.id',
-            '=',
-            'order_item_modifiers.modifier_id'
-        )
-        ->joinSub($payments, 'payment_totals', function ($join) {
-            $join->on('payment_totals.order_id', '=', 'orders.id');
-        });
-
-    if ($request->filled('category_id')) {
-        $query->where(
-            'menu_items.menu_category_id',
-            $request->category_id
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): array {
+        $payments = $this->paymentAllocationQuery(
+            $request,
+            $from,
+            $to
         );
-    }
 
-    return $query
-        ->selectRaw("
+        $query = DB::table('order_item_modifiers')
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_modifiers.order_item_id'
+            )
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
+            ->leftJoin(
+                'menu_categories',
+                'menu_categories.id',
+                '=',
+                'menu_items.menu_category_id'
+            )
+            ->join(
+                'modifiers',
+                'modifiers.id',
+                '=',
+                'order_item_modifiers.modifier_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            });
+
+        if ($request->filled('category_id')) {
+            $query->where(
+                'menu_items.menu_category_id',
+                $request->category_id
+            );
+        }
+
+        return $query
+            ->selectRaw("
             menu_items.name as menu_item,
             menu_items.menu_category_id as category_id,
             menu_categories.name as category_name,
@@ -1263,34 +1263,34 @@ class SalesDashboardService
                 END
             ) as cogs
         ")
-        ->groupBy(
-            'menu_items.id',
-            'menu_items.name',
-            'menu_items.menu_category_id',
-            'menu_categories.name',
-            'modifiers.id',
-            'modifiers.name',
-            'modifiers.price'
-        )
-        ->orderByDesc('qty')
-        ->get()
-        ->map(function ($item) {
-            return [
-                'menu_item' => $item->menu_item,
-                'category_id' => $item->category_id !== null
-                    ? (int) $item->category_id
-                    : null,
-                'category_name' => $item->category_name,
-                'modifier_id' => (int) $item->modifier_id,
-                'name' => $item->name,
-                'qty' => round((float) $item->qty, 2),
-                'price' => (float) $item->modifier_price,
-                'sales' => round((float) $item->total_amount, 2),
-                'cogs' => round((float) $item->cogs, 2),
-            ];
-        })
-        ->toArray();
-}
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.name',
+                'menu_items.menu_category_id',
+                'menu_categories.name',
+                'modifiers.id',
+                'modifiers.name',
+                'modifiers.price'
+            )
+            ->orderByDesc('qty')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'menu_item' => $item->menu_item,
+                    'category_id' => $item->category_id !== null
+                        ? (int) $item->category_id
+                        : null,
+                    'category_name' => $item->category_name,
+                    'modifier_id' => (int) $item->modifier_id,
+                    'name' => $item->name,
+                    'qty' => round((float) $item->qty, 2),
+                    'price' => (float) $item->modifier_price,
+                    'sales' => round((float) $item->total_amount, 2),
+                    'cogs' => round((float) $item->cogs, 2),
+                ];
+            })
+            ->toArray();
+    }
 
     private function salesByPaymentMethod(
         Request $request,
@@ -1369,37 +1369,38 @@ class SalesDashboardService
         Carbon $from,
         Carbon $to
     ): array {
-        $query = OrderItem::query()
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
-            ->join(
-                'menu_items',
-                'menu_items.id',
-                '=',
-                'order_items.menu_item_id'
-            )
+        $payments = $this->paymentOrderQuery($request, $from, $to);
+
+        $categories = DB::table('order_items')
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('menu_items', 'menu_items.id', '=', 'order_items.menu_item_id')
             ->leftJoin(
                 'menu_categories',
                 'menu_categories.id',
                 '=',
                 'menu_items.menu_category_id'
-            );
-
-        // Apply dashboard date, location, order type,
-        // source, payment method and status filters.
-        $this->applyFilters($query, $request, $from, $to);
-
-        $categories = $query
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            })
             ->selectRaw("
             menu_categories.id as category_id,
             COALESCE(menu_categories.name, 'Uncategorized') as category_name,
-            SUM(order_items.quantity) as qty,
+
             SUM(
-                order_items.quantity * order_items.unit_price
+                order_items.quantity *
+                LEAST(
+                    GREATEST(payment_totals.paid_ratio, 0),
+                    1
+                )
+            ) as qty,
+
+            SUM(
+                order_items.quantity * order_items.unit_price *
+                LEAST(
+                    GREATEST(payment_totals.paid_ratio, 0),
+                    1
+                )
             ) as value
         ")
             ->groupBy(
@@ -1426,7 +1427,7 @@ class SalesDashboardService
 
                 'category_name' => $item->category_name,
 
-                'qty' => $qty,
+                'qty' => round($qty, 2),
 
                 'qty_percentage' => $totalQty > 0
                     ? round(($qty / $totalQty) * 100, 2)
@@ -1446,6 +1447,8 @@ class SalesDashboardService
         Carbon $from,
         Carbon $to
     ): array {
+        $payments = $this->paymentOrderQuery($request, $from, $to);
+
         // Order-level discounts
         $orderDiscounts = DB::table('order_discounts')
             ->join('orders', 'orders.id', '=', 'order_discounts.order_id')
@@ -1455,19 +1458,30 @@ class SalesDashboardService
                 '=',
                 'order_discounts.discount_id'
             )
-            ->whereBetween('orders.ordered_at', [$from, $to]);
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            })
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
-        $this->applyDiscountFilters(
-            $orderDiscounts,
-            $request
-        );
+        if ($request->filled('discount_id')) {
+            $orderDiscounts->where(
+                'order_discounts.discount_id',
+                $request->discount_id
+            );
+        }
 
         $orderRows = $orderDiscounts
             ->selectRaw("
             order_discounts.discount_id,
             COALESCE(discounts.name, 'Unknown') as discount_name,
             COUNT(*) as qty,
-            SUM(order_discounts.amount) as value
+            SUM(
+                order_discounts.amount *
+                LEAST(
+                    GREATEST(payment_totals.paid_ratio, 0),
+                    1
+                )
+            ) as value
         ")
             ->groupBy(
                 'order_discounts.discount_id',
@@ -1483,31 +1497,37 @@ class SalesDashboardService
                 '=',
                 'order_item_discounts.order_item_id'
             )
-            ->join(
-                'orders',
-                'orders.id',
-                '=',
-                'order_items.order_id'
-            )
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin(
                 'discounts',
                 'discounts.id',
                 '=',
                 'order_item_discounts.discount_id'
             )
-            ->whereBetween('orders.ordered_at', [$from, $to]);
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            })
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
-        $this->applyDiscountFilters(
-            $itemDiscounts,
-            $request
-        );
+        if ($request->filled('discount_id')) {
+            $itemDiscounts->where(
+                'order_item_discounts.discount_id',
+                $request->discount_id
+            );
+        }
 
         $itemRows = $itemDiscounts
             ->selectRaw("
             order_item_discounts.discount_id,
             COALESCE(discounts.name, 'Unknown') as discount_name,
             COUNT(*) as qty,
-            SUM(order_item_discounts.amount) as value
+            SUM(
+                order_item_discounts.amount *
+                LEAST(
+                    GREATEST(payment_totals.paid_ratio, 0),
+                    1
+                )
+            ) as value
         ")
             ->groupBy(
                 'order_item_discounts.discount_id',
@@ -1515,7 +1535,7 @@ class SalesDashboardService
             )
             ->get();
 
-        // Combine order-level and item-level totals by discount.
+        // Combine order-level and item-level discounts.
         return $orderRows
             ->concat($itemRows)
             ->groupBy(fn($item) => $item->discount_id ?? 'unknown')
@@ -1526,8 +1546,11 @@ class SalesDashboardService
                     'discount_id' => $first->discount_id !== null
                         ? (int) $first->discount_id
                         : null,
+
                     'discount_name' => $first->discount_name,
+
                     'qty' => (int) $rows->sum('qty'),
+
                     'value' => round(
                         (float) $rows->sum('value'),
                         2
@@ -1539,80 +1562,182 @@ class SalesDashboardService
             ->toArray();
     }
 
-    public function discountDetails(Request $request, ?Carbon $from = null, ?Carbon $to = null): array
-    {
+    public function discountDetails(
+        Request $request,
+        ?Carbon $from = null,
+        ?Carbon $to = null
+    ): array {
         if ($from === null || $to === null) {
             [$from, $to] = $this->getDateRange($request);
         }
 
-        $orderDiscounts = DB::table('order_discounts')
-            ->join('orders', 'orders.id', '=', 'order_discounts.order_id')
-            ->leftJoin('discounts', 'discounts.id', '=', 'order_discounts.discount_id')
-            ->leftJoin('order_types', 'order_types.id', '=', 'orders.order_type_id')
-            ->leftJoin('users', 'users.id', '=', 'orders.cashier_id')
-            ->whereBetween('orders.ordered_at', [$from, $to])
-            ->where('orders.status', Order::STATUS_COMPLETED)
-            ->where('orders.payment_status', 'paid');
-
-        $itemDiscounts = DB::table('order_item_discounts')
-            ->join('order_items', 'order_items.id', '=', 'order_item_discounts.order_item_id')
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->leftJoin('discounts', 'discounts.id', '=', 'order_item_discounts.discount_id')
-            ->leftJoin('order_types', 'order_types.id', '=', 'orders.order_type_id')
-            ->leftJoin('users', 'users.id', '=', 'orders.cashier_id')
-            ->whereBetween('orders.ordered_at', [$from, $to])
-            ->where('orders.status', Order::STATUS_COMPLETED)
-            ->where('orders.payment_status', 'paid');
-
-        if ($request->filled('discount_id')) {
-            $orderDiscounts->where('order_discounts.discount_id', $request->discount_id);
-            $itemDiscounts->where('order_item_discounts.discount_id', $request->discount_id);
-        }
+        // Payments grouped by order and payment date.
+        $payments = DB::table('payments')
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
         if ($request->filled('location_id')) {
-            $orderDiscounts->where('orders.location_id', $request->location_id);
-            $itemDiscounts->where('orders.location_id', $request->location_id);
+            $payments->where(
+                'orders.location_id',
+                $request->location_id
+            );
         }
 
         if ($request->filled('order_type')) {
-            $orderDiscounts->where('orders.order_type_id', $request->order_type);
-            $itemDiscounts->where('orders.order_type_id', $request->order_type);
+            $payments->where(
+                'orders.order_type_id',
+                $request->order_type
+            );
         }
 
         if ($request->filled('order_source_id')) {
-            $orderDiscounts->where('orders.order_source_id', $request->order_source_id);
-            $itemDiscounts->where('orders.order_source_id', $request->order_source_id);
+            $payments->where(
+                'orders.order_source_id',
+                $request->order_source_id
+            );
         }
 
         if ($request->filled('payment_method_id')) {
-            $orderDiscounts->where('orders.payment_method_id', $request->payment_method_id);
-            $itemDiscounts->where('orders.payment_method_id', $request->payment_method_id);
+            $payments->where(
+                'payments.payment_method_id',
+                $request->payment_method_id
+            );
+        }
+
+        $payments = $payments
+            ->selectRaw("
+            orders.id as order_id,
+            DATE(payments.paid_at) as payment_date,
+            orders.total_amount,
+            SUM(payments.amount) as paid_amount
+        ")
+            ->groupBy(
+                'orders.id',
+                'orders.total_amount',
+                DB::raw('DATE(payments.paid_at)')
+            );
+
+        // Order-level discounts.
+        $orderDiscounts = DB::table('order_discounts')
+            ->join('orders', 'orders.id', '=', 'order_discounts.order_id')
+            ->leftJoin(
+                'discounts',
+                'discounts.id',
+                '=',
+                'order_discounts.discount_id'
+            )
+            ->leftJoin(
+                'order_types',
+                'order_types.id',
+                '=',
+                'orders.order_type_id'
+            )
+            ->leftJoin(
+                'users',
+                'users.id',
+                '=',
+                'orders.cashier_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            })
+            ->where('orders.status', Order::STATUS_COMPLETED);
+
+        // Item-level discounts.
+        $itemDiscounts = DB::table('order_item_discounts')
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_discounts.order_item_id'
+            )
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin(
+                'discounts',
+                'discounts.id',
+                '=',
+                'order_item_discounts.discount_id'
+            )
+            ->leftJoin(
+                'order_types',
+                'order_types.id',
+                '=',
+                'orders.order_type_id'
+            )
+            ->leftJoin(
+                'users',
+                'users.id',
+                '=',
+                'orders.cashier_id'
+            )
+            ->joinSub($payments, 'payment_totals', function ($join) {
+                $join->on('payment_totals.order_id', '=', 'orders.id');
+            })
+            ->where('orders.status', Order::STATUS_COMPLETED);
+
+        if ($request->filled('discount_id')) {
+            $orderDiscounts->where(
+                'order_discounts.discount_id',
+                $request->discount_id
+            );
+
+            $itemDiscounts->where(
+                'order_item_discounts.discount_id',
+                $request->discount_id
+            );
         }
 
         $orderRows = $orderDiscounts
             ->selectRaw("
-                DATE(orders.ordered_at) as date,
-                orders.order_no,
-                order_types.name as order_type,
-                COALESCE(users.name, 'Unknown') as user_name,
-                COALESCE(discounts.name, 'Unknown') as discount_name,
-                'order' as scope,
-                'order_level' as discount_type,
-                order_discounts.amount as discount_amount
-            ")
+            payment_totals.payment_date as date,
+            orders.order_no,
+            order_types.name as order_type,
+            COALESCE(users.name, 'Unknown') as user_name,
+            COALESCE(discounts.name, 'Unknown') as discount_name,
+            'order' as scope,
+            'order_level' as discount_type,
+
+            order_discounts.amount *
+            CASE
+                WHEN payment_totals.total_amount > 0
+                THEN LEAST(
+                    GREATEST(
+                        payment_totals.paid_amount /
+                        payment_totals.total_amount,
+                        0
+                    ),
+                    1
+                )
+                ELSE 0
+            END as discount_amount
+        ")
             ->get();
 
         $itemRows = $itemDiscounts
             ->selectRaw("
-                DATE(orders.ordered_at) as date,
-                orders.order_no,
-                order_types.name as order_type,
-                COALESCE(users.name, 'Unknown') as user_name,
-                COALESCE(discounts.name, 'Unknown') as discount_name,
-                'item' as scope,
-                'item_level' as discount_type,
-                order_item_discounts.amount as discount_amount
-            ")
+            payment_totals.payment_date as date,
+            orders.order_no,
+            order_types.name as order_type,
+            COALESCE(users.name, 'Unknown') as user_name,
+            COALESCE(discounts.name, 'Unknown') as discount_name,
+            'item' as scope,
+            'item_level' as discount_type,
+
+            order_item_discounts.amount *
+            CASE
+                WHEN payment_totals.total_amount > 0
+                THEN LEAST(
+                    GREATEST(
+                        payment_totals.paid_amount /
+                        payment_totals.total_amount,
+                        0
+                    ),
+                    1
+                )
+                ELSE 0
+            END as discount_amount
+        ")
             ->get();
 
         return $orderRows
@@ -1622,11 +1747,14 @@ class SalesDashboardService
                     'date' => $row->date,
                     'order_no' => $row->order_no,
                     'order_type' => $row->order_type,
-                    'by' => $row->user_name ?? $row->by ?? 'Unknown',
+                    'by' => $row->user_name ?? 'Unknown',
                     'discount_name' => $row->discount_name,
                     'scope' => $row->scope,
                     'discount_type' => $row->discount_type,
-                    'discount_amount' => (float) $row->discount_amount,
+                    'discount_amount' => round(
+                        (float) $row->discount_amount,
+                        2
+                    ),
                 ];
             })
             ->values()
