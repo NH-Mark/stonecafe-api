@@ -56,28 +56,28 @@ class SalesDashboardService
             ->whereBetween('created_at', [$previousFrom, $previousTo]);
 
         $currentTotalSales = (float) DB::query()
-        ->fromSub(
-            $this->paymentOrderQuery($request, $from, $to),
-            'po'
-        )
-        ->sum('po.paid_amount');
+            ->fromSub(
+                $this->paymentOrderQuery($request, $from, $to),
+                'po'
+            )
+            ->sum('po.paid_amount');
 
         $previousTotalSales = (float) DB::query()
-        ->fromSub(
-            $this->paymentOrderQuery(
-                $request,
-                $previousFrom,
-                $previousTo
-            ),
-            'po'
-        )
-        ->sum('po.paid_amount');
+            ->fromSub(
+                $this->paymentOrderQuery(
+                    $request,
+                    $previousFrom,
+                    $previousTo
+                ),
+                'po'
+            )
+            ->sum('po.paid_amount');
 
         $currentCogs = $this->paymentBasedCogs(
-                $request,
-                $from,
-                $to
-            );
+            $request,
+            $from,
+            $to
+        );
 
         $previousCogs =  $this->paymentBasedCogs(
             $request,
@@ -97,12 +97,16 @@ class SalesDashboardService
             : 0;
 
         $currentPaidModifiers = $this->paymentBasedModifiers(
-            $request, $from, $to
+            $request,
+            $from,
+            $to
         );
 
 
         $previousPaidModifiers = $this->paymentBasedModifiers(
-            $request, $previousFrom, $previousTo
+            $request,
+            $previousFrom,
+            $previousTo
         );
 
         $grossSales = $currentTotalSales + $currentDiscounts;
@@ -120,13 +124,13 @@ class SalesDashboardService
             'stats' => [
                 $this->card(
                     'Total Sales',
-                      $currentTotalSales,
-                        $this->percentage(
-                            $previousTotalSales,
-                            $currentTotalSales
-                        ),
-                        'sales',
-                        true
+                    $currentTotalSales,
+                    $this->percentage(
+                        $previousTotalSales,
+                        $currentTotalSales
+                    ),
+                    'sales',
+                    true
                 ),
 
                 $this->card(
@@ -394,43 +398,43 @@ class SalesDashboardService
         Carbon $from,
         Carbon $to
     ): array {
+        $query = DB::table('payments')
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
+        // Dashboard filters
+        if ($request->filled('location_id')) {
+            $query->where('orders.location_id', $request->location_id);
+        }
 
-        $query = Order::query();
+        if ($request->filled('order_type')) {
+            $query->where('orders.order_type_id', $request->order_type);
+        }
 
+        if ($request->filled('order_source_id')) {
+            $query->where('orders.order_source_id', $request->order_source_id);
+        }
 
-        $this->applyFilters(
-            $query,
-            $request,
-            $from,
-            $to
-        );
-
+        if ($request->filled('payment_method_id')) {
+            $query->where(
+                'payments.payment_method_id',
+                $request->payment_method_id
+            );
+        }
 
         return $query
             ->selectRaw("
-            DATE(ordered_at) as date,
-            SUM(total_amount) as sales
-        ")
-            ->groupBy(
-                'date'
-            )
-            ->orderBy(
-                'date'
-            )
+                DATE(payments.paid_at) as date,
+                SUM(payments.amount) as sales
+            ")
+            ->groupByRaw('DATE(payments.paid_at)')
+            ->orderByRaw('DATE(payments.paid_at)')
             ->get()
             ->map(function ($item) {
-
-
                 return [
-
-                    'date' => Carbon::parse(
-                        $item->date
-                    )->format('d M'),
-
-
-                    'sales' => (float)$item->sales
-
+                    'date' => Carbon::parse($item->date)->format('d M'),
+                    'sales' => (float) $item->sales,
                 ];
             })
             ->values()
@@ -442,42 +446,58 @@ class SalesDashboardService
         Carbon $from,
         Carbon $to
     ): array {
+        $query = DB::table('payments')
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->leftJoin(
+                'order_types',
+                'order_types.id',
+                '=',
+                'orders.order_type_id'
+            )
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
+        // Dashboard filters
+        if ($request->filled('location_id')) {
+            $query->where('orders.location_id', $request->location_id);
+        }
 
-        $query = Order::query();
+        if ($request->filled('order_type')) {
+            $query->where('orders.order_type_id', $request->order_type);
+        }
 
+        if ($request->filled('order_source_id')) {
+            $query->where('orders.order_source_id', $request->order_source_id);
+        }
 
-        $this->applyFilters(
-            $query,
-            $request,
-            $from,
-            $to
-        );
-
+        if ($request->filled('payment_method_id')) {
+            $query->where(
+                'payments.payment_method_id',
+                $request->payment_method_id
+            );
+        }
 
         return $query
-            ->with('orderType')
             ->selectRaw("
-            order_type_id,
-            SUM(total_amount) as value
+            orders.order_type_id,
+            COALESCE(order_types.name, 'Unknown') as name,
+            SUM(payments.amount) as value
         ")
             ->groupBy(
-                'order_type_id'
+                'orders.order_type_id',
+                'order_types.name'
             )
+            ->orderByDesc('value')
             ->get()
             ->map(function ($item) {
-
                 return [
-
-                    'name' => $item->orderType->name,
-
-                    'value' => (float)$item->value
-
+                    'name' => $item->name,
+                    'value' => (float) $item->value,
                 ];
             })
+            ->values()
             ->toArray();
     }
-
     private function topGrossingItems(
         Request $request,
         Carbon $from,
@@ -925,7 +945,7 @@ class SalesDashboardService
     //     return $orderDiscountAmount + $itemDiscountAmount;
     // }
 
-    
+
     private function discountTotal(
         Request $request,
         Carbon $from,
@@ -1500,123 +1520,120 @@ class SalesDashboardService
         }
     }
 
-    
-private function paymentOrderQuery(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-) {
-    $query = DB::table('payments')
-        ->join('orders', 'orders.id', '=', 'payments.order_id')
-        ->whereBetween('payments.paid_at', [$from, $to])
-        ->where('orders.status', Order::STATUS_COMPLETED);
 
-    if ($request->filled('location_id')) {
-        $query->where('orders.location_id', $request->location_id);
-    }
+    private function paymentOrderQuery(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ) {
+        $query = DB::table('payments')
+            ->join('orders', 'orders.id', '=', 'payments.order_id')
+            ->whereBetween('payments.paid_at', [$from, $to])
+            ->where('orders.status', Order::STATUS_COMPLETED);
 
-    if ($request->filled('order_type')) {
-        $query->where('orders.order_type_id', $request->order_type);
-    }
+        if ($request->filled('location_id')) {
+            $query->where('orders.location_id', $request->location_id);
+        }
 
-    if ($request->filled('order_source_id')) {
-        $query->where('orders.order_source_id', $request->order_source_id);
-    }
+        if ($request->filled('order_type')) {
+            $query->where('orders.order_type_id', $request->order_type);
+        }
 
-    if ($request->filled('payment_method_id')) {
-        $query->where(
-            'payments.payment_method_id',
-            $request->payment_method_id
-        );
-    }
+        if ($request->filled('order_source_id')) {
+            $query->where('orders.order_source_id', $request->order_source_id);
+        }
 
-    return $query
-        ->selectRaw("
+        if ($request->filled('payment_method_id')) {
+            $query->where(
+                'payments.payment_method_id',
+                $request->payment_method_id
+            );
+        }
+
+        return $query
+            ->selectRaw("
             orders.id as order_id,
             orders.total_amount,
             SUM(payments.amount) as paid_amount,
             SUM(payments.amount) /
                 NULLIF(orders.total_amount, 0) as paid_ratio
         ")
-        ->groupBy('orders.id', 'orders.total_amount');
-}
+            ->groupBy('orders.id', 'orders.total_amount');
+    }
 
 
-private function paymentBasedCogs(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): float {
+    private function paymentBasedCogs(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): float {
 
-    $cogs = DB::table('order_items')
-        ->join(
-            'menu_items',
-            'menu_items.id',
-            '=',
-            'order_items.menu_item_id'
-        )
-        ->selectRaw("
+        $cogs = DB::table('order_items')
+            ->join(
+                'menu_items',
+                'menu_items.id',
+                '=',
+                'order_items.menu_item_id'
+            )
+            ->selectRaw("
             order_items.order_id,
             SUM(
                 order_items.quantity * menu_items.cost_price
             ) as cogs
         ")
-        ->groupBy('order_items.order_id');
+            ->groupBy('order_items.order_id');
 
-    return (float) DB::query()
-        ->fromSub(
-            $this->paymentOrderQuery($request, $from, $to),
-            'po'
-        )
-        ->leftJoinSub($cogs, 'c', function ($join) {
-            $join->on('c.order_id', '=', 'po.order_id');
-        })
-        ->sum(DB::raw("
+        return (float) DB::query()
+            ->fromSub(
+                $this->paymentOrderQuery($request, $from, $to),
+                'po'
+            )
+            ->leftJoinSub($cogs, 'c', function ($join) {
+                $join->on('c.order_id', '=', 'po.order_id');
+            })
+            ->sum(DB::raw("
             COALESCE(c.cogs, 0) * po.paid_ratio
         "));
-}
+    }
 
 
-private function paymentBasedModifiers(
-    Request $request,
-    Carbon $from,
-    Carbon $to
-): float {
+    private function paymentBasedModifiers(
+        Request $request,
+        Carbon $from,
+        Carbon $to
+    ): float {
 
-    $modifiers = DB::table('order_item_modifiers')
-        ->join(
-            'order_items',
-            'order_items.id',
-            '=',
-            'order_item_modifiers.order_item_id'
-        )
-        ->join(
-            'modifiers',
-            'modifiers.id',
-            '=',
-            'order_item_modifiers.modifier_id'
-        )
-        ->selectRaw("
+        $modifiers = DB::table('order_item_modifiers')
+            ->join(
+                'order_items',
+                'order_items.id',
+                '=',
+                'order_item_modifiers.order_item_id'
+            )
+            ->join(
+                'modifiers',
+                'modifiers.id',
+                '=',
+                'order_item_modifiers.modifier_id'
+            )
+            ->selectRaw("
             order_items.order_id,
             SUM(
                 order_item_modifiers.quantity * modifiers.price
             ) as modifier_total
         ")
-        ->groupBy('order_items.order_id');
+            ->groupBy('order_items.order_id');
 
-    return (float) DB::query()
-        ->fromSub(
-            $this->paymentOrderQuery($request, $from, $to),
-            'po'
-        )
-        ->joinSub($modifiers, 'm', function ($join) {
-            $join->on('m.order_id', '=', 'po.order_id');
-        })
-        ->sum(DB::raw("
+        return (float) DB::query()
+            ->fromSub(
+                $this->paymentOrderQuery($request, $from, $to),
+                'po'
+            )
+            ->joinSub($modifiers, 'm', function ($join) {
+                $join->on('m.order_id', '=', 'po.order_id');
+            })
+            ->sum(DB::raw("
             m.modifier_total * po.paid_ratio
         "));
-}
-
-
-
+    }
 }
