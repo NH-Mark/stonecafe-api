@@ -125,6 +125,15 @@
     ">
                                     Location: {{ $locationName }}
                                 </div>
+                                @else
+                                <div
+                                    style="
+        margin-top:6px;
+        font-size:13px;
+        color:#ddd6d0;
+    ">
+                                    Location: All
+                                </div>
                                 @endif
                             </div>
 
